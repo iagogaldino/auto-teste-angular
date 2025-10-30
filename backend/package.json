@@ -1,7 +1,7 @@
 {
   "name": "autounittest-backend",
   "version": "1.0.0",
-  "description": "Backend para AutoUnitTest - Sistema de testes automatizados",
+  "description": "Backend para DelsucTest - Sistema de testes automatizados",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

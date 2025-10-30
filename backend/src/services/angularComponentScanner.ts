@@ -27,7 +27,14 @@ export class AngularComponentScanner {
       '**/build/**',
       '**/*.spec.ts',
       '**/*.test.ts',
-      '**/e2e/**'
+      '**/e2e/**',
+      // Config files - excluding them from scanning
+      '**/*.json',  // Excludes all JSON files including tsconfig
+      '**/.prettierrc*',
+      '**/.eslintrc*',
+      // Out directories
+      '**/out-tsc/**',
+      '.angular/**'
     ]
   };
 
@@ -59,10 +66,29 @@ export class AngularComponentScanner {
       // Processar cada arquivo
       for (const filePath of files) {
         try {
-          const component = await this.analyzeFile(filePath, directoryPath);
-          if (component) {
-            components.push(component);
-          }
+          const content = readFileSync(filePath, 'utf-8');
+          
+          // Criar um componente genérico para todos os arquivos .ts
+          // mesmo que não tenham @Component decorator
+          const relativePath = relative(directoryPath, filePath);
+          const fileName = relativePath.split(/[/\\]/).pop() || relativePath;
+          const componentName = fileName.replace('.ts', '');
+          
+          const component: AngularComponent = {
+            name: componentName,
+            filePath: relativePath,
+            selector: '',
+            isStandalone: true,
+            imports: this.extractImports(content),
+            methods: this.extractMethods(content),
+            properties: this.extractProperties(content),
+            signals: this.extractSignals(content),
+            computedSignals: this.extractComputedSignals(content),
+            interfaces: this.extractInterfaces(content),
+            dependencies: this.extractDependencies(content)
+          };
+          
+          components.push(component);
           scannedFiles++;
         } catch (error) {
           errors.push({
@@ -126,7 +152,9 @@ export class AngularComponentScanner {
     }
 
     // Remover duplicatas
-    return [...new Set(allFiles)];
+    const uniqueFiles = [...new Set(allFiles)];
+    
+    return uniqueFiles;
   }
 
   /**
@@ -136,10 +164,6 @@ export class AngularComponentScanner {
     try {
       const content = readFileSync(filePath, 'utf-8');
       
-      // Verificar se é um componente Angular
-      if (!this.isAngularComponent(content)) {
-        return null;
-      }
 
       const relativePath = relative(baseDirectory, filePath);
       // Extrair dados essenciais primeiro para permitir filtros

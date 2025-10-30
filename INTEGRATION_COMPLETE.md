@@ -1,4 +1,4 @@
-# 🧪 AutoUnitTest - Sistema Completo de Geração de Testes Unitários
+# 🧪 DelsucTest - Sistema Completo de Geração de Testes Unitários
 
 Sistema integrado que combina **Angular frontend** + **Node.js backend** + **ChatGPT API** + **Socket.IO** para gerar testes unitários automaticamente com acompanhamento em tempo real.
 
@@ -27,7 +27,7 @@ Sistema integrado que combina **Angular frontend** + **Node.js backend** + **Cha
 ## 📁 Estrutura do Projeto
 
 ```
-AutoUnitTest/
+DelsucTest/
 ├── backend/                    # Servidor Node.js
 │   ├── src/
 │   │   ├── services/          # Serviços principais

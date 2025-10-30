@@ -29,7 +29,7 @@ export const config: EnvironmentConfig = {
   STACKSPOT_CLIENT_KEY: process.env['STACKSPOT_CLIENT_KEY'],
   STACKSPOT_REALM: process.env['STACKSPOT_REALM'],
   STACKSPOT_TOKEN_URL: process.env['STACKSPOT_TOKEN_URL'],
-  STACKSPOT_USER_AGENT: process.env['STACKSPOT_USER_AGENT'] || 'AutoUnitTest/1.0 (+backend)',
+  STACKSPOT_USER_AGENT: process.env['STACKSPOT_USER_AGENT'] || 'DelsucTest/1.0 (+backend)',
   STACKSPOT_COMPLETIONS_URL: process.env['STACKSPOT_COMPLETIONS_URL'],
   STACKSPOT_AGENT_CHAT_URL: process.env['STACKSPOT_AGENT_CHAT_URL']
 };

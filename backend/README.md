@@ -1,6 +1,6 @@
-# AutoUnitTest Backend
+# DelsucTest Backend
 
-Backend para o sistema AutoUnitTest desenvolvido em Node.js com TypeScript e Socket.IO.
+Backend para o sistema DelsucTest desenvolvido em Node.js com TypeScript e Socket.IO.
 
 ## 🚀 Tecnologias
 

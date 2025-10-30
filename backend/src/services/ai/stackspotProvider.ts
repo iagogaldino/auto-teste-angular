@@ -27,7 +27,7 @@ export class StackspotProvider {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': env.STACKSPOT_USER_AGENT || 'AutoUnitTest/1.0 (+backend)'
+      'User-Agent': env.STACKSPOT_USER_AGENT || 'DelsucTest/1.0 (+backend)'
     };
 
     const resp = await fetch(tokenUrl, { method: 'POST', headers, body: form as unknown as any });
@@ -50,7 +50,7 @@ export class StackspotProvider {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
-      'User-Agent': env.STACKSPOT_USER_AGENT || 'AutoUnitTest/1.0 (+backend)'
+      'User-Agent': env.STACKSPOT_USER_AGENT || 'DelsucTest/1.0 (+backend)'
     };
     if (this.sessionToken) headers['session_token'] = this.sessionToken;
 

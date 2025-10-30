@@ -53,3 +53,27 @@ body {
 
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+// Tunable variables for blurred background logo
+:root {
+  --app-bg-logo-size: 130vmin; // overall logo size (larger)
+  --app-bg-logo-blur: 4px;     // bem menos desfocado
+  --app-bg-logo-opacity: 0.22; // mais visível
+}
+
+// Blurred brand logo background
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('/assets/sp.jpg') no-repeat center center;
+  background-size: cover;
+  filter: blur(var(--app-bg-logo-blur));
+  opacity: var(--app-bg-logo-opacity);
+  transform: scale(1.1); // avoid blur edges
+  pointer-events: none;
+  z-index: -1;
+}

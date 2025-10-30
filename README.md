@@ -75,7 +75,7 @@ Para um guia completo, veja `INTEGRATION_COMPLETE.md`.
 ```bash
 curl --location --request POST 'https://idm.stackspot.com/stackspot-freemium/oidc/oauth/token' \
   --header 'Content-Type: application/x-www-form-urlencoded' \
-  --header 'User-Agent: AutoUnitTest/1.0' \
+  --header 'User-Agent: DelsucTest/1.0' \
   --data-urlencode 'grant_type=client_credentials' \
   --data-urlencode 'client_id=SEU_CLIENT_ID' \
   --data-urlencode 'client_secret=SEU_CLIENT_KEY'
@@ -86,7 +86,7 @@ curl --location --request POST 'https://idm.stackspot.com/stackspot-freemium/oid
 ```bash
 curl --location 'https://genai-inference-app.stackspot.com/v1/agent/01K8SGYPB02EWM9V4CWSEYWAWN/chat' \
   --header 'Content-Type: application/json' \
-  --header 'User-Agent: AutoUnitTest/1.0' \
+  --header 'User-Agent: DelsucTest/1.0' \
   --header 'Authorization: Bearer {{jwt}}' \
   --data '{
     "streaming": true,

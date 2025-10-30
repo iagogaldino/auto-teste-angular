@@ -1,4 +1,4 @@
-import { Component, signal, computed, OnInit, OnDestroy } from '@angular/core';
+import { Component, signal, computed, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SocketService } from './services/socket.service';
@@ -16,7 +16,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatExpansionModule } from '@angular/material/expansion';
-import { MatStepperModule } from '@angular/material/stepper';
+import { MatStepperModule, MatStepper } from '@angular/material/stepper';
 
 @Component({
   selector: 'app-root',
@@ -90,6 +90,10 @@ export class AppComponent implements OnInit, OnDestroy {
   canGenerateTests = computed(() => this.hasSelectedFiles() && !this.isGeneratingTests());
   hasCreatedTests = computed(() => this.testResults().length > 0);
   
+  // Completion indicators
+  scanCompleted = computed(() => !this.isScanning() && this.scannedComponents().length > 0);
+  testsGenerated = computed(() => !this.isGeneratingTests() && this.testResults().length > 0);
+  
   // Contadores para resultados
   successCount = computed(() => this.testResults().filter(r => r.success).length);
   errorCount = computed(() => this.testResults().filter(r => !r.success).length);
@@ -97,6 +101,9 @@ export class AppComponent implements OnInit, OnDestroy {
   // Mensagens de status
   statusMessage = signal<string>('Conectando ao servidor...');
   errorMessage = signal<string>('');
+
+  // Stepper reference
+  @ViewChild(MatStepper) stepper?: MatStepper;
 
   constructor(private socketService: SocketService) {}
 
@@ -138,7 +145,25 @@ export class AppComponent implements OnInit, OnDestroy {
       this.isScanning.set(false);
       this.scanProgress.set(null);
       this.scannedComponents.set(data.result.components || []);
-      this.statusMessage.set(`Escaneamento concluído: ${data.result.components?.length || 0} componentes encontrados`);
+      
+      // Mensagem mais informativa
+      const totalFiles = data.result.totalFiles || 0;
+      const componentCount = data.result.components?.length || 0;
+      
+      if (componentCount === 0) {
+        this.statusMessage.set(`Nenhum componente Angular encontrado (${totalFiles} arquivos .ts escaneados)`);
+        this.errorMessage.set('Nenhum componente Angular foi detectado. Verifique se os arquivos contêm o decorator @Component.');
+      } else {
+        this.statusMessage.set(`Escaneamento concluído: ${componentCount} componentes encontrados em ${totalFiles} arquivos`);
+        this.errorMessage.set('');
+      }
+      
+      // Auto-avança para o próximo step após o escaneamento concluir
+      if (data.result.components && data.result.components.length > 0 && this.stepper) {
+        setTimeout(() => {
+          this.stepper?.next();
+        }, 500); // Pequeno delay para melhorar a UX
+      }
     });
 
     this.socketService.onScanError().subscribe(data => {
@@ -203,6 +228,13 @@ export class AppComponent implements OnInit, OnDestroy {
       this.isGeneratingTests.set(false);
       this.testProgress.set(null);
       this.statusMessage.set(`Geração concluída: ${data.results.filter(r => r.success).length}/${data.results.length} sucessos`);
+      
+      // Auto-avança para o próximo step após a geração de testes concluir
+      if (data.results && data.results.length > 0 && this.stepper) {
+        setTimeout(() => {
+          this.stepper?.next();
+        }, 500); // Pequeno delay para melhorar a UX
+      }
     });
 
     this.socketService.onTestGenerationError().subscribe(data => {
