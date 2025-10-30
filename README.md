@@ -77,6 +77,8 @@ Detalhes adicionais em `INTEGRATION_COMPLETE.md` e `CONFIG_SETUP.md`.
 Workspace (raiz):
 - `npm run dev` – inicia backend e frontend em paralelo
 - `npm run build` – build de backend e frontend
+- `npm run dev:backend` – inicia somente o backend (atalho)
+- `npm run dev:frontend` – inicia somente o frontend (atalho)
 
 Backend:
 - `npm run dev` – desenvolvimento
