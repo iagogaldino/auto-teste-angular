@@ -167,6 +167,55 @@ export class TestGenerationSocketService {
           
           // Enviar resultado individual
           socket.emit('test-generated', result);
+
+          // Criar automaticamente o arquivo de teste no mesmo diretório relativo a src/app
+          try {
+            const fs = await import('fs');
+            const path = await import('path');
+
+            // Raiz do repositório e projeto de testes
+            const repoRoot = path.resolve(__dirname, '../../..');
+            const testProjectRoot = path.join(repoRoot, 'test-angular');
+
+            // Extrair caminho relativo dentro de src/app do arquivo original
+            const match = filePath.match(/[\\\/]src[\\\/]app[\\\/](.*)/);
+            const relWithinApp = match ? match[1] : path.basename(filePath);
+
+            const originalDirWithinApp = path.dirname(relWithinApp);
+            const originalBaseWithExt = path.basename(relWithinApp);
+            const originalBase = originalBaseWithExt.replace(/\.[^.]+$/, '');
+
+            // Diretório alvo dentro do test-angular espelhando a estrutura
+            const targetDir = path.join(testProjectRoot, 'src', 'app', originalDirWithinApp);
+            if (!fs.existsSync(targetDir)) {
+              fs.mkdirSync(targetDir, { recursive: true });
+            }
+
+            const specFileName = originalBaseWithExt.endsWith('.spec.ts')
+              ? originalBaseWithExt
+              : originalBaseWithExt.replace(/\.ts$/, '.spec.ts');
+            const specFilePath = path.join(targetDir, specFileName);
+
+            // Ajustar import do componente para um import local no mesmo diretório
+            let codeToWrite = result.testCode || '';
+            const sameDirImport = `./${originalBase}`;
+            codeToWrite = codeToWrite.replace(
+              new RegExp("from\\s+['\"]\\./[^'\"]+['\"]"),
+              `from '${sameDirImport}'`
+            );
+
+            fs.writeFileSync(specFilePath, codeToWrite, 'utf8');
+
+            socket.emit('test-file-created', {
+              filePath: specFilePath,
+              success: true
+            });
+          } catch (autoWriteErr) {
+            socket.emit('test-file-error', {
+              filePath: filePath,
+              error: autoWriteErr instanceof Error ? autoWriteErr.message : 'Erro ao salvar teste gerado'
+            });
+          }
           
 
         } catch (error) {

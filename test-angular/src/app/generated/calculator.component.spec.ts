@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { CalculatorComponent } from './calculator.component';
+import { CalculatorComponent } from '../calculator/calculator.component';
 
 describe('CalculatorComponent', () => {
   let component: CalculatorComponent;
@@ -13,20 +13,20 @@ describe('CalculatorComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create the component', () => {
+  it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should have initial result signal as 0', () => {
+  it('should have initial result as 0', () => {
     expect(component.result()).toBe(0);
   });
 
-  it('should set result to 20 when calculate() is called', () => {
-    component.calculate();
-    expect(component.result()).toBe(20);
+  it('addTenPlusTen should return 20', () => {
+    expect(component.addTenPlusTen()).toBe(20);
   });
 
-  it('addTenPlusTen() should return 20', () => {
-    expect(component.addTenPlusTen()).toBe(20);
+  it('calculate should set result to 20', () => {
+    component.calculate();
+    expect(component.result()).toBe(20);
   });
 });
