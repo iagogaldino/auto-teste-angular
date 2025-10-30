@@ -17,13 +17,28 @@
     "build": "npm --workspace backend run build && npm --workspace frontend run build && npm run build:bundle",
     "build:bundle": "shx rm -rf dist && shx mkdir -p dist/backend dist/frontend && shx cp -r backend/dist/* dist/backend/ && shx cp -r frontend/dist/* dist/frontend/",
     "start": "node dist/backend/index.js",
-    "package:win": "pkg dist/backend/index.js --output dist/auto-unit-test.exe -t node18-win-x64",
+    "package:win": "pkg . --output dist/auto-unit-test.exe -t node18-win-x64",
     "install:all": "npm install"
   },
+  "bin": "dist/backend/index.js",
   "devDependencies": {
     "concurrently": "^9.0.1",
     "shx": "^0.3.4",
     "pkg": "^5.8.1"
+  },
+  "pkg": {
+    "targets": [
+      "node18-win-x64"
+    ],
+    "outputPath": "dist",
+    "assets": [
+      "dist/frontend/**/*",
+      "backend/config.json"
+    ],
+    "scripts": [
+      "dist/backend/**/*.js"
+    ],
+    "compress": false
   }
 }
 
