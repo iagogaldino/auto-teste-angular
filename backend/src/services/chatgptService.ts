@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import { config as env } from '../config/environment';
 import { 
   ChatGPTRequest, 
   ChatGPTResponse, 
@@ -6,30 +6,36 @@ import {
   UnitTestResponse, 
   ChatGPTError 
 } from '../types/chatgpt';
+import { AIProvider } from './ai/aiProvider';
+import { OpenAIProvider } from './ai/openaiProvider';
+import { StackspotProvider } from './ai/stackspotProvider';
 
 export class ChatGPTService {
-  private openai: OpenAI;
   private readonly model: string;
   private readonly temperature: number;
   private readonly maxTokens: number;
+  private readonly provider: 'openai' | 'stackspot';
+  private aiProvider: AIProvider;
 
   constructor() {
+    this.provider = env.AI_PROVIDER;
     const apiKey = process.env.OPENAI_API_KEY;
-    
-    console.log('🔑 Debug - OPENAI_API_KEY:', apiKey ? 'ENCONTRADA' : 'NÃO ENCONTRADA');
-    console.log('🔑 Debug - Valor:', apiKey ? `${apiKey.substring(0, 10)}...` : 'undefined');
-    
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY não encontrada nas variáveis de ambiente');
-    }
-
-    this.openai = new OpenAI({
-      apiKey: apiKey,
-    });
 
     this.model = 'gpt-3.5-turbo';
     this.temperature = 0.7;
     this.maxTokens = 2000;
+
+    console.log(`[AI] Provider selecionado: ${this.provider}`);
+    if (this.provider === 'stackspot') {
+      console.log(`[AI] STACKSPOT_COMPLETIONS_URL: ${env.STACKSPOT_COMPLETIONS_URL || '(não definido)'}`);
+      console.log(`[AI] STACKSPOT_TOKEN_URL: ${env.STACKSPOT_TOKEN_URL || `(montado via realm: https://idm.stackspot.com/${env.STACKSPOT_REALM || 'stackspot-freemium'}/oidc/oauth/token)`}`);
+      this.aiProvider = new StackspotProvider();
+    } else {
+      if (!apiKey) {
+        throw new Error('OPENAI_API_KEY não encontrada nas variáveis de ambiente');
+      }
+      this.aiProvider = new OpenAIProvider(apiKey);
+    }
   }
 
   /**
@@ -66,25 +72,18 @@ export class ChatGPTService {
    */
   private async callChatGPT(request: ChatGPTRequest): Promise<ChatGPTResponse> {
     try {
-      const response = await this.openai.chat.completions.create({
-        model: request.model || this.model,
-        messages: request.messages,
-        temperature: request.temperature || this.temperature,
-        max_tokens: request.max_tokens || this.maxTokens,
-      });
-
-      return response as ChatGPTResponse;
+      return await this.aiProvider.callChat(request);
     } catch (error: any) {
-      console.error('Erro na chamada para ChatGPT:', error);
-      
-      if (error.response?.data) {
+      console.error('Erro na chamada de IA:', error);
+      if (error?.response?.data) {
         const chatGPTError: ChatGPTError = error.response.data;
-        throw new Error(`Erro da API ChatGPT: ${chatGPTError.error.message}`);
+        throw new Error(`Erro da API: ${chatGPTError.error.message}`);
       }
-      
-      throw new Error(`Erro na comunicação com ChatGPT: ${error.message}`);
+      throw error;
     }
   }
+
+  // Stackspot/OpenAI specifics handled by providers now
 
   /**
    * Constrói o prompt do sistema para geração de testes unitários
@@ -231,14 +230,35 @@ Tipo de teste: ${testType}`;
 
       // Tenta fazer o parse do JSON
       const parsedResponse = JSON.parse(jsonContent);
-      
+
+      // Aceita formatos alternativos vindos do Stackspot Agent Chat
+      let normalizedResponse: any = parsedResponse;
+      if (Array.isArray(parsedResponse)) {
+        const first = parsedResponse[0] || {};
+        if (first && typeof first === 'object' && first.code) {
+          normalizedResponse = {
+            testCode: first.code,
+            explanation: 'Gerado via Stackspot Agent Chat',
+            testCases: [],
+            dependencies: [],
+            setupInstructions: ''
+          };
+        }
+      } else if (parsedResponse && parsedResponse.code && !parsedResponse.testCode) {
+        normalizedResponse = {
+          ...parsedResponse,
+          testCode: parsedResponse.code,
+          explanation: parsedResponse.explanation || 'Gerado via Stackspot Agent Chat'
+        };
+      }
+
       // Valida se tem os campos obrigatórios
-      if (!parsedResponse.testCode || !parsedResponse.explanation) {
+      if (!normalizedResponse.testCode || !normalizedResponse.explanation) {
         throw new Error('Resposta do ChatGPT não contém os campos obrigatórios');
       }
 
       // Limpa o testCode removendo escape characters duplicados
-      let testCode = parsedResponse.testCode;
+      let testCode = normalizedResponse.testCode;
       if (typeof testCode === 'string') {
         // Remove escapes duplicados que podem ter sido gerados
         testCode = testCode
@@ -256,10 +276,10 @@ Tipo de teste: ${testType}`;
 
       return {
         testCode: testCode,
-        explanation: parsedResponse.explanation,
-        testCases: parsedResponse.testCases || [],
-        dependencies: parsedResponse.dependencies || [],
-        setupInstructions: parsedResponse.setupInstructions || ''
+        explanation: normalizedResponse.explanation,
+        testCases: normalizedResponse.testCases || [],
+        dependencies: normalizedResponse.dependencies || [],
+        setupInstructions: normalizedResponse.setupInstructions || ''
       };
     } catch (error) {
       console.error('❌ Erro ao fazer parse da resposta:', error);
