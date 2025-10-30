@@ -24,7 +24,9 @@ export interface EnvironmentConfig {
   providedIn: 'root'
 })
 export class ConfigService {
-  private readonly apiUrl = 'http://localhost:3000/api/config';
+  private readonly apiUrl = ((typeof window !== 'undefined' && window.location && window.location.origin)
+    ? window.location.origin
+    : 'http://localhost:3000') + '/api/config';
 
   constructor(private http: HttpClient) {}
 

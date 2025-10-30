@@ -39,7 +39,16 @@ const io = new socket_io_1.Server(server, {
     }
 });
 exports.io = io;
-app.use((0, helmet_1.default)());
+app.use((0, helmet_1.default)({
+    contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+            "connect-src": ["'self'", "ws:", "http:", "https:"],
+            "script-src-attr": ["'unsafe-inline'"]
+        }
+    },
+    crossOriginEmbedderPolicy: false
+}));
 app.use((0, compression_1.default)());
 app.use((0, cors_1.default)({
     origin: [environment_1.config.CORS_ORIGIN, 'http://localhost:4200', 'http://localhost:3000', 'http://localhost:3001'],

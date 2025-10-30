@@ -1,13 +1,73 @@
-2025-10-30T13:22:24.534Z INFO server_started port=3001
-2025-10-30T13:22:28.072Z INFO http method=GET url=/ status=200 ms=75
-2025-10-30T13:22:28.167Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=200 ms=10
-2025-10-30T13:22:28.211Z INFO http method=GET url=/polyfills-5CFQRCPP.js status=200 ms=104
-2025-10-30T13:22:28.368Z INFO http method=GET url=/assets/sp.jpg status=200 ms=27
-2025-10-30T13:22:28.374Z INFO http method=GET url=/styles-FHTT7P4Z.css status=200 ms=36
-2025-10-30T13:22:28.485Z INFO http method=GET url=/main-UO4T7HFO.js status=200 ms=369
-2025-10-30T13:22:28.680Z INFO http method=GET url=/favicon.ico status=200 ms=31
-2025-10-30T13:22:37.461Z INFO scan_start directoryPath=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular
-2025-10-30T13:22:37.543Z INFO scan_done directoryPath=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular components=8 files=8 ms=82 errors=0
-2025-10-30T13:22:47.275Z INFO http method=GET url=/styles-FHTT7P4Z.css status=304 ms=3
-2025-10-30T13:22:47.305Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=304 ms=5
-2025-10-30T13:34:03.136Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=304 ms=6
+2025-10-30T13:55:35.207Z INFO server_started port=3001
+2025-10-30T13:55:40.071Z INFO http method=GET url=/ status=200 ms=76
+2025-10-30T13:55:40.116Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=200 ms=13
+2025-10-30T13:55:40.208Z INFO http method=GET url=/polyfills-5CFQRCPP.js status=200 ms=96
+2025-10-30T13:55:40.333Z INFO http method=GET url=/assets/sp.jpg status=200 ms=24
+2025-10-30T13:55:40.339Z INFO http method=GET url=/styles-FHTT7P4Z.css status=200 ms=32
+2025-10-30T13:55:40.430Z INFO http method=GET url=/main-M3R2SRWN.js status=200 ms=310
+2025-10-30T13:55:40.605Z INFO http method=GET url=/favicon.ico status=200 ms=26
+2025-10-30T13:55:42.182Z WARN config_file_not_found path=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:55:42.184Z INFO returning_current_config_from_env
+2025-10-30T13:55:42.189Z INFO http method=GET url=/api/config status=200 ms=10
+2025-10-30T13:56:35.444Z WARN config_file_not_found path=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:56:35.446Z INFO returning_current_config_from_env
+2025-10-30T13:56:35.450Z INFO http method=GET url=/api/config status=304 ms=7
+2025-10-30T13:56:58.753Z WARN config_file_not_found path=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:56:58.755Z INFO returning_current_config_from_env
+2025-10-30T13:56:58.759Z INFO http method=GET url=/api/config status=304 ms=7
+2025-10-30T13:57:06.986Z WARN config_file_not_found path=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:57:06.989Z INFO returning_current_config_from_env
+2025-10-30T13:57:06.992Z INFO http method=GET url=/api/config status=304 ms=6
+2025-10-30T13:57:20.354Z WARN config_file_not_found path=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:57:20.368Z INFO config_file_saved path=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:57:20.414Z INFO config_saved_and_reloaded configFile=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:57:20.421Z INFO http method=POST url=/api/config status=200 ms=81
+2025-10-30T13:57:27.621Z INFO config_file_saved path=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:57:27.647Z INFO config_saved_and_reloaded configFile=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:57:27.652Z INFO http method=POST url=/api/config status=200 ms=36
+2025-10-30T13:57:37.392Z INFO config_file_saved path=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:57:37.426Z INFO config_saved_and_reloaded configFile=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:57:37.431Z INFO http method=POST url=/api/config status=200 ms=44
+2025-10-30T13:57:43.405Z INFO config_file_saved path=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:57:43.444Z INFO config_saved_and_reloaded configFile=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:57:43.452Z INFO http method=POST url=/api/config status=200 ms=53
+2025-10-30T13:57:50.591Z INFO config_file_saved path=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:57:50.621Z INFO config_saved_and_reloaded configFile=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T13:57:50.625Z INFO http method=POST url=/api/config status=200 ms=40
+2025-10-30T13:57:53.294Z INFO http method=GET url=/api/config status=200 ms=5
+2025-10-30T13:58:10.268Z INFO http method=GET url=/styles-FHTT7P4Z.css status=304 ms=2
+2025-10-30T13:58:10.285Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=304 ms=4
+2025-10-30T13:58:23.298Z INFO scan_start directoryPath=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular
+2025-10-30T13:58:23.369Z INFO scan_done directoryPath=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular components=8 files=8 ms=71 errors=0
+2025-10-30T13:59:59.500Z INFO http method=GET url=/api/config status=304 ms=3
+2025-10-30T14:00:04.451Z INFO config_file_saved path=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T14:00:04.491Z INFO config_saved_and_reloaded configFile=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\dist\config.json
+2025-10-30T14:00:04.494Z INFO http method=POST url=/api/config status=200 ms=49
+2025-10-30T14:01:19.093Z INFO http method=GET url=/ status=304 ms=2
+2025-10-30T14:01:19.138Z INFO http method=GET url=/polyfills-5CFQRCPP.js status=304 ms=3
+2025-10-30T14:01:19.141Z INFO http method=GET url=/main-M3R2SRWN.js status=304 ms=5
+2025-10-30T14:01:19.357Z INFO http method=GET url=/styles-FHTT7P4Z.css status=304 ms=4
+2025-10-30T14:01:19.361Z INFO http method=GET url=/assets/sp.jpg status=304 ms=6
+2025-10-30T14:01:19.612Z INFO http method=GET url=/favicon.ico status=304 ms=2
+2025-10-30T14:01:20.997Z INFO http method=GET url=/api/config status=200 ms=10
+2025-10-30T14:01:32.669Z INFO scan_start directoryPath=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular
+2025-10-30T14:01:32.710Z INFO scan_done directoryPath=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular components=8 files=8 ms=42 errors=0
+2025-10-30T14:14:22.483Z INFO server_started port=3000
+2025-10-30T14:15:59.259Z INFO server_started port=3000
+2025-10-30T14:16:14.354Z INFO http method=GET url=/ status=200 ms=33
+2025-10-30T14:16:14.452Z INFO http method=GET url=/polyfills-5CFQRCPP.js status=200 ms=12
+2025-10-30T14:16:14.456Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=200 ms=20
+2025-10-30T14:16:14.533Z INFO http method=GET url=/main-M3R2SRWN.js status=200 ms=89
+2025-10-30T14:16:14.677Z INFO http method=GET url=/styles-FHTT7P4Z.css status=200 ms=6
+2025-10-30T14:16:14.684Z INFO http method=GET url=/assets/sp.jpg status=200 ms=4
+2025-10-30T14:16:14.883Z INFO http method=GET url=/favicon.ico status=200 ms=4
+2025-10-30T14:16:14.990Z INFO http method=GET url=/favicon.ico status=304 ms=2
+2025-10-30T14:16:17.762Z INFO http method=GET url=/api/config status=304 ms=8
+2025-10-30T14:16:31.828Z INFO scan_start directoryPath=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular
+2025-10-30T14:16:31.925Z INFO scan_done directoryPath=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular components=8 files=8 ms=97 errors=0
+2025-10-30T14:16:39.344Z INFO ai_generate_start provider=stackspot model=gpt-3.5-turbo language=typescript
+2025-10-30T14:16:47.280Z INFO ai_generate_done ms=7936 hasCode=true
+2025-10-30T14:20:59.543Z INFO ai_generate_start provider=stackspot model=gpt-3.5-turbo language=typescript
+2025-10-30T14:21:04.502Z INFO ai_generate_done ms=4959 hasCode=true
+2025-10-30T14:21:05.506Z INFO ai_generate_start provider=stackspot model=gpt-3.5-turbo language=typescript
+2025-10-30T14:21:40.768Z INFO ai_generate_done ms=35262 hasCode=true

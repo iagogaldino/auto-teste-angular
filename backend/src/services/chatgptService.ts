@@ -20,7 +20,7 @@ export class ChatGPTService {
 
   constructor() {
     this.provider = env.AI_PROVIDER;
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY || env.OPENAI_API_KEY;
 
     this.model = 'gpt-3.5-turbo';
     this.temperature = 0.7;

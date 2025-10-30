@@ -45,7 +45,18 @@ const io = new SocketIOServer(server, {
 });
 
 // Middleware de segurança e performance
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      // Permite chamadas XHR/fetch e websockets para mesma origem e localhost
+      "connect-src": ["'self'", "ws:", "http:", "https:"],
+      // Evita bloquear event handlers simples do Angular em alguns navegadores
+      "script-src-attr": ["'unsafe-inline'"]
+    }
+  },
+  crossOriginEmbedderPolicy: false
+}));
 app.use(compression());
 app.use(cors({
   origin: [config.CORS_ORIGIN, 'http://localhost:4200', 'http://localhost:3000', 'http://localhost:3001'],

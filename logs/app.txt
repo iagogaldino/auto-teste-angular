@@ -35,3 +35,21 @@
 2025-10-30T13:01:16.704Z INFO http method=GET url=/ status=404 ms=4
 2025-10-30T13:01:17.704Z INFO http method=GET url=/ status=404 ms=2
 2025-10-30T13:01:18.306Z INFO http method=GET url=/ status=404 ms=1
+2025-10-30T13:37:16.959Z INFO server_started port=3001
+2025-10-30T13:45:38.574Z INFO http method=GET url=/ status=304 ms=7
+2025-10-30T13:45:38.627Z INFO http method=GET url=/polyfills-5CFQRCPP.js status=304 ms=5
+2025-10-30T13:45:38.629Z INFO http method=GET url=/main-UO4T7HFO.js status=304 ms=4
+2025-10-30T13:45:38.637Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=304 ms=3
+2025-10-30T13:45:38.843Z INFO http method=GET url=/styles-FHTT7P4Z.css status=304 ms=3
+2025-10-30T13:45:38.849Z INFO http method=GET url=/assets/sp.jpg status=304 ms=3
+2025-10-30T13:45:39.019Z INFO http method=GET url=/favicon.ico status=304 ms=1
+2025-10-30T13:47:13.043Z INFO server_started port=3001
+2025-10-30T13:51:33.009Z INFO server_started port=3001
+2025-10-30T13:51:54.869Z INFO http method=GET url=/ status=404 ms=7
+2025-10-30T13:51:54.980Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=404 ms=3
+2025-10-30T13:52:02.039Z INFO http method=GET url=/ status=404 ms=2
+2025-10-30T13:52:02.083Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=404 ms=3
+2025-10-30T13:52:03.951Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=404 ms=2
+2025-10-30T13:52:07.884Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=404 ms=1
+2025-10-30T13:52:09.180Z INFO http method=GET url=/ status=404 ms=2
+2025-10-30T13:52:09.237Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=404 ms=3

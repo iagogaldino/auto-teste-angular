@@ -1,0 +1,135 @@
+import { TestBed } from '@angular/core/testing';
+import { MathSuiteComponent } from './math-suite.component';
+
+describe('MathSuiteComponent', () => {
+  let component: MathSuiteComponent;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [MathSuiteComponent],
+    });
+    const fixture = TestBed.createComponent(MathSuiteComponent);
+    component = fixture.componentInstance;
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+
+  it('should have default a and b as 12 and 8', () => {
+    expect(component.a()).toBe(12);
+    expect(component.b()).toBe(8);
+  });
+
+  it('should compute sum, diff, prod, quot, pow', () => {
+    expect(component.sum()).toBe(20);
+    expect(component.diff()).toBe(4);
+    expect(component.prod()).toBe(96);
+    expect(component.quot()).toBe(1.5);
+    expect(component.pow()).toBe(Math.pow(12, 8));
+  });
+
+  it('should handle division by zero in quot', () => {
+    component.b.set(0);
+    expect(component.quot()).toEqual(NaN);
+  });
+
+  it('should compute GCD and LCM', () => {
+    expect(component.gcd()).toBe(4);
+    expect(component.lcm()).toBe(24);
+  });
+
+  it('should return 0 for LCM if GCD is 0', () => {
+    component.a.set(0);
+    component.b.set(0);
+    expect(component.gcd()).toBe(0);
+    expect(component.lcm()).toBe(0);
+  });
+
+  it('should determine if a and b are prime', () => {
+    component.a.set(13);
+    component.b.set(17);
+    expect(component.isAPrime()).toBe(true);
+    expect(component.isBPrime()).toBe(true);
+
+    component.a.set(10);
+    component.b.set(15);
+    expect(component.isAPrime()).toBe(false);
+    expect(component.isBPrime()).toBe(false);
+
+    component.a.set(-5);
+    expect(component.isAPrime()).toBe(false);
+
+    component.a.set(1);
+    expect(component.isAPrime()).toBe(false);
+
+    component.a.set(2);
+    expect(component.isAPrime()).toBe(true);
+
+    component.a.set(3);
+    expect(component.isAPrime()).toBe(true);
+  });
+
+  it('should compute safe factorial for a and b', () => {
+    component.a.set(5);
+    component.b.set(6);
+    expect(component.factorialA()).toBe(120);
+    expect(component.factorialB()).toBe(720);
+
+    component.a.set(-1);
+    expect(component.factorialA()).toBe('NaN');
+
+    component.a.set(21);
+    expect(component.factorialA()).toBe('Overflow');
+  });
+
+  it('should compute safe fibonacci for a and b', () => {
+    component.a.set(7);
+    component.b.set(10);
+    expect(component.fibA()).toBe(13); // F(7)
+    expect(component.fibB()).toBe(55); // F(10)
+
+    component.a.set(-1);
+    expect(component.fibA()).toBe('NaN');
+
+    component.a.set(71);
+    expect(component.fibA()).toBe('Overflow');
+  });
+
+  it('setA and setB should update values with valid numbers', () => {
+    component.setA('24');
+    component.setB(16);
+    expect(component.a()).toBe(24);
+    expect(component.b()).toBe(16);
+
+    // Should ignore invalid input
+    component.setA('abc');
+    expect(component.a()).toBe(24);
+
+    component.setB('');
+    expect(component.b()).toBe(16);
+  });
+
+  it('should recompute all values when a or b change', () => {
+    component.setA(7);
+    component.setB(3);
+
+    expect(component.sum()).toBe(10);
+    expect(component.diff()).toBe(4);
+    expect(component.prod()).toBe(21);
+    expect(component.quot()).toBeCloseTo(7 / 3, 6);
+
+    expect(component.pow()).toBe(Math.pow(7, 3));
+    expect(component.gcd()).toBe(1);
+    expect(component.lcm()).toBe(21);
+
+    expect(component.isAPrime()).toBe(true);
+    expect(component.isBPrime()).toBe(true);
+
+    expect(component.factorialA()).toBe(5040); // 7!
+    expect(component.factorialB()).toBe(6); // 3!
+
+    expect(component.fibA()).toBe(13); // F(7)
+    expect(component.fibB()).toBe(2); // F(3)
+  });
+});
