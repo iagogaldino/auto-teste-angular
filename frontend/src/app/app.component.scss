@@ -217,6 +217,24 @@
   }
 }
 
+// Recent directories option styling
+.recent-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.recent-item .recent-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-item .remove-recent {
+  margin-left: 8px;
+}
+
 .scan-button {
   min-width: 120px;
 }

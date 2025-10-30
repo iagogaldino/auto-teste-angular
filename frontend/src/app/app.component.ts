@@ -20,6 +20,7 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatStepperModule, MatStepper } from '@angular/material/stepper';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 
 @Component({
   selector: 'app-root',
@@ -40,7 +41,8 @@ import { MatTabsModule } from '@angular/material/tabs';
     MatExpansionModule,
     MatStepperModule,
     MatSelectModule,
-    MatTabsModule
+    MatTabsModule,
+    MatAutocompleteModule
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
@@ -138,6 +140,10 @@ export class AppComponent implements OnInit, OnDestroy {
   statusMessage = signal<string>('Conectando ao servidor...');
   errorMessage = signal<string>('');
 
+  // Histórico de diretórios recentes
+  private recentDirectoriesKey = 'recentDirectories';
+  recentDirectories = signal<string[]>([]);
+
   // Stepper reference
   @ViewChild(MatStepper) stepper?: MatStepper;
   @ViewChild('allTestsOutputContainer') allTestsOutputContainer?: ElementRef<HTMLDivElement>;
@@ -150,6 +156,7 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.setupSocketListeners();
     this.socketService.connect();
+    this.loadRecentDirectories();
   }
 
   ngOnDestroy(): void {
@@ -203,6 +210,12 @@ export class AppComponent implements OnInit, OnDestroy {
         setTimeout(() => {
           this.stepper?.next();
         }, 500); // Pequeno delay para melhorar a UX
+      }
+
+      // Salva diretório escaneado com sucesso no histórico
+      const scannedDir = this.directoryPath();
+      if (scannedDir && scannedDir.trim()) {
+        this.addRecentDirectory(scannedDir);
       }
     });
 
@@ -607,6 +620,85 @@ export class AppComponent implements OnInit, OnDestroy {
 
   clearError(): void {
     this.errorMessage.set('');
+  }
+
+  // ===== Diretórios Recentes (localStorage) =====
+  private async loadRecentDirectories(): Promise<void> {
+    try {
+      const res = await fetch('/api/directories');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data?.directories)) {
+          this.recentDirectories.set(data.directories);
+          return;
+        }
+      }
+    } catch {}
+    // Fallback local
+    try {
+      const raw = localStorage.getItem(this.recentDirectoriesKey);
+      if (raw) {
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) this.recentDirectories.set(list);
+      }
+    } catch {}
+  }
+
+  private saveRecentDirectoriesFallback(): void {
+    try {
+      localStorage.setItem(this.recentDirectoriesKey, JSON.stringify(this.recentDirectories()));
+    } catch {}
+  }
+
+  async addRecentDirectory(path: string): Promise<void> {
+    if (!path) return;
+    const trimmed = path.trim();
+    if (!trimmed) return;
+    try {
+      const res = await fetch('/api/directories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: trimmed })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data?.directories)) {
+          this.recentDirectories.set(data.directories);
+          return;
+        }
+      }
+    } catch {}
+    // fallback local
+    this.recentDirectories.update(list => {
+      const exists = list.some(p => p.toLowerCase() === trimmed.toLowerCase());
+      return exists ? list : [trimmed, ...list].slice(0, 10);
+    });
+    this.saveRecentDirectoriesFallback();
+  }
+
+  selectRecentDirectory(path: string): void {
+    this.directoryPath.set(path);
+  }
+
+  async removeRecentDirectory(path: string, event?: Event): Promise<void> {
+    if (event) event.stopPropagation();
+    try {
+      const res = await fetch('/api/directories', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data?.directories)) {
+          this.recentDirectories.set(data.directories);
+          return;
+        }
+      }
+    } catch {}
+    // fallback local
+    this.recentDirectories.update(list => list.filter(p => p !== path));
+    this.saveRecentDirectoriesFallback();
   }
 
   getFileName(filePath: string): string {

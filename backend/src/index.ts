@@ -25,6 +25,7 @@ import { testRoutes } from '@/routes/tests';
 import chatgptRoutes from '@/routes/chatgpt';
 import angularRoutes from '@/routes/angular';
 import configRoutes from '@/routes/config';
+import directoriesRoutes from '@/routes/directories';
 
 // Importar middleware
 import { errorHandler } from '@/middleware/errorHandler';
@@ -86,6 +87,7 @@ app.use('/api/tests', testRoutes);
 app.use('/api/chatgpt', chatgptRoutes);
 app.use('/api/angular', angularRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/directories', directoriesRoutes);
 
 // Servir frontend a partir de backend/public
 const baseDir = (process as any).pkg ? path.dirname(process.execPath) : path.resolve(__dirname, '..');

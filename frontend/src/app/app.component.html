@@ -57,6 +57,7 @@
               placeholder="ex: C:\\Users\\...\\src"
               [disabled]="isScanning()"
               (keydown.enter)="scanDirectory()"
+              [matAutocomplete]="dirAuto"
             >
             <button 
               mat-icon-button 
@@ -68,6 +69,17 @@
             >
               <mat-icon [class.spinning]="isScanning()">{{ isScanning() ? 'refresh' : 'search' }}</mat-icon>
             </button>
+            <mat-autocomplete #dirAuto="matAutocomplete">
+              <mat-option *ngFor="let dir of recentDirectories()" (onSelectionChange)="selectRecentDirectory(dir)" [value]="dir">
+                <div class="recent-item">
+                  <span class="recent-path">{{ dir }}</span>
+                  <button mat-icon-button color="warn" class="remove-recent" (click)="removeRecentDirectory(dir, $event)" title="Remover">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+              </mat-option>
+              <mat-option *ngIf="recentDirectories().length === 0" disabled>Nenhum diretório recente</mat-option>
+            </mat-autocomplete>
           </mat-form-field>
         </div>
         
