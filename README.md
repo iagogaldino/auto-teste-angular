@@ -39,13 +39,13 @@ LOG_LEVEL=info
 3) Executar
 
 ```bash
-# Backend
-cd backend
+# Opção A (recomendada) — Workspace
 npm run dev
 
-# Frontend (nova aba)
-cd ../frontend
-npm start
+# Opção B — Manual
+cd backend && npm run dev
+# nova aba
+cd frontend && npm start
 ```
 
 - Backend: `http://localhost:3000`
@@ -73,6 +73,10 @@ npm start
 Detalhes adicionais em `INTEGRATION_COMPLETE.md` e `CONFIG_SETUP.md`.
 
 ## 🧰 Scripts
+
+Workspace (raiz):
+- `npm run dev` – inicia backend e frontend em paralelo
+- `npm run build` – build de backend e frontend
 
 Backend:
 - `npm run dev` – desenvolvimento

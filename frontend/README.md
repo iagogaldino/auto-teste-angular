@@ -7,6 +7,7 @@ UI para acompanhar escaneamento de componentes, geração e execução de testes
 ```bash
 npm install
 npm start
+# ou pela raiz do workspace: npm run dev
 ```
 
 Acesse `http://localhost:4200/`.
