@@ -1,0 +1,51 @@
+<div class="math-suite">
+  <h2>Suite de Cálculos</h2>
+
+  <div class="inputs">
+    <label>
+      A
+      <input type="number" [ngModel]="a()" (ngModelChange)="setA($event)" />
+    </label>
+    <label>
+      B
+      <input type="number" [ngModel]="b()" (ngModelChange)="setB($event)" />
+    </label>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Operações Básicas</h3>
+      <p>A + B = <strong>{{ sum() }}</strong></p>
+      <p>A - B = <strong>{{ diff() }}</strong></p>
+      <p>A × B = <strong>{{ prod() }}</strong></p>
+      <p>A ÷ B = <strong>{{ quot() }}</strong></p>
+      <p>A^B = <strong>{{ pow() }}</strong></p>
+    </div>
+
+    <div class="card">
+      <h3>Divisibilidade</h3>
+      <p>mdc(A, B) = <strong>{{ gcd() }}</strong></p>
+      <p>mmc(A, B) = <strong>{{ lcm() }}</strong></p>
+    </div>
+
+    <div class="card">
+      <h3>Primos</h3>
+      <p>A é primo? <strong>{{ isAPrime() ? 'Sim' : 'Não' }}</strong></p>
+      <p>B é primo? <strong>{{ isBPrime() ? 'Sim' : 'Não' }}</strong></p>
+    </div>
+
+    <div class="card">
+      <h3>Fatorial</h3>
+      <p>A! = <strong>{{ factorialA() }}</strong></p>
+      <p>B! = <strong>{{ factorialB() }}</strong></p>
+    </div>
+
+    <div class="card">
+      <h3>Fibonacci</h3>
+      <p>Fib(A) = <strong>{{ fibA() }}</strong></p>
+      <p>Fib(B) = <strong>{{ fibB() }}</strong></p>
+    </div>
+  </div>
+</div>
+
+

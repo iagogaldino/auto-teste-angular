@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import { spawn, ChildProcess } from 'child_process';
 import { join, dirname, basename, resolve } from 'path';
 import { existsSync } from 'fs';
+import { logger } from './logger';
 
 export interface JestExecutionOptions {
   projectPath: string;
@@ -32,7 +33,7 @@ export class JestExecutionService extends EventEmitter {
     while (currentPath !== rootPath) {
       const packageJsonPath = join(currentPath, 'package.json');
       if (existsSync(packageJsonPath)) {
-        console.log(`📦 package.json encontrado em: ${currentPath}`);
+        logger.debug('jest_pkg_found', { path: currentPath });
         return currentPath;
       }
       currentPath = dirname(currentPath);
@@ -57,8 +58,7 @@ export class JestExecutionService extends EventEmitter {
 
       // Encontrar o diretório raiz do projeto (que contém package.json)
       const actualProjectPath = this.findProjectRoot(projectPath);
-      console.log(`🧪 Executando teste em: ${actualProjectPath}`);
-      console.log(`📄 Arquivo de teste: ${testFilePath}`);
+      logger.info('jest_run_start', { cwd: actualProjectPath, file: testFilePath });
 
       // Cancelar execução anterior se existir
       const processKey = testFilePath;
@@ -129,8 +129,7 @@ export class JestExecutionService extends EventEmitter {
           const fullOutput = output + errorOutput;
           const success = code === 0;
 
-          console.log(`✅ Jest finalizado com código: ${code}`);
-          console.log(`📊 Saída: ${fullOutput.substring(0, 200)}...`);
+          logger.info('jest_run_done', { code, success, preview: fullOutput.substring(0, 200) });
 
           this.emit('completed', {
             testFilePath,
@@ -151,7 +150,7 @@ export class JestExecutionService extends EventEmitter {
           clearTimeout(timeoutId);
           this.activeProcesses.delete(processKey);
 
-          console.error(`❌ Erro no processo Jest:`, error);
+          logger.error('jest_run_proc_error', { error: error instanceof Error ? error.message : 'unknown' });
 
           this.emit('error', {
             testFilePath,
@@ -167,7 +166,7 @@ export class JestExecutionService extends EventEmitter {
       });
 
     } catch (error) {
-      console.error(`❌ Erro ao executar teste:`, error);
+      logger.error('jest_run_error', { error: error instanceof Error ? error.message : 'unknown' });
       
       this.emit('error', {
         testFilePath,
@@ -225,7 +224,7 @@ export class JestExecutionService extends EventEmitter {
 
       // Encontrar o diretório raiz do projeto (que contém package.json)
       const actualProjectPath = this.findProjectRoot(projectPath);
-      console.log(`🧪 Executando todos os testes com Jest diretamente em: ${actualProjectPath}`);
+      logger.info('jest_all_start', { cwd: actualProjectPath });
 
       // Cancelar execução anterior se existir
       const processKey = 'all-tests';
@@ -296,8 +295,7 @@ export class JestExecutionService extends EventEmitter {
           const fullOutput = output + errorOutput;
           const success = code === 0;
 
-          console.log(`✅ Jest (todos os testes) finalizado com código: ${code}`);
-          console.log(`📊 Saída: ${fullOutput.substring(0, 200)}...`);
+          logger.info('jest_all_done', { code, success, preview: fullOutput.substring(0, 200) });
 
           this.emit('completed', {
             testFilePath: 'all-tests',
@@ -318,7 +316,7 @@ export class JestExecutionService extends EventEmitter {
           clearTimeout(timeoutId);
           this.activeProcesses.delete(processKey);
 
-          console.error(`❌ Erro no processo Jest (todos os testes):`, error);
+          logger.error('jest_all_proc_error', { error: error instanceof Error ? error.message : 'unknown' });
 
           this.emit('error', {
             testFilePath: 'all-tests',
@@ -334,7 +332,7 @@ export class JestExecutionService extends EventEmitter {
       });
 
     } catch (error) {
-      console.error(`❌ Erro ao executar todos os testes:`, error);
+      logger.error('jest_all_error', { error: error instanceof Error ? error.message : 'unknown' });
       
       this.emit('error', {
         testFilePath: 'all-tests',

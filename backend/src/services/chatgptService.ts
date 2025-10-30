@@ -9,6 +9,7 @@ import {
 import { AIProvider } from './ai/aiProvider';
 import { OpenAIProvider } from './ai/openaiProvider';
 import { StackspotProvider } from './ai/stackspotProvider';
+import { logger, writeRaw } from './logger';
 
 export class ChatGPTService {
   private readonly model: string;
@@ -39,6 +40,8 @@ export class ChatGPTService {
    */
   async generateUnitTest(request: UnitTestRequest): Promise<UnitTestResponse> {
     try {
+      const t0 = Date.now();
+      logger.info('ai_generate_start', { provider: this.provider, model: this.model, language: request.language });
       const systemPrompt = this.buildSystemPrompt(request);
       const userPrompt = this.buildUserPrompt(request);
 
@@ -54,11 +57,19 @@ export class ChatGPTService {
         max_tokens: this.maxTokens
       };
 
+      // Registrar o payload completo enviado para a IA
+      try {
+        const payload = JSON.stringify(chatRequest, null, 2);
+        logger.debug('ai_request_built', { length: payload.length });
+        writeRaw('ai-request', payload, 'json');
+      } catch {}
+
       const response = await this.callChatGPT(chatRequest);
-      
-      return this.parseUnitTestResponse(response);
+      const parsed = await this.parseUnitTestResponse(response);
+      logger.info('ai_generate_done', { ms: Date.now() - t0, hasCode: Boolean(parsed.testCode) });
+      return parsed;
     } catch (error) {
-      console.error('Erro ao gerar teste unitário:', error);
+      logger.error('ai_generate_fail', { error: error instanceof Error ? error.message : 'unknown' });
       throw new Error(`Falha na geração do teste unitário: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     }
   }
@@ -68,9 +79,14 @@ export class ChatGPTService {
    */
   private async callChatGPT(request: ChatGPTRequest): Promise<ChatGPTResponse> {
     try {
-      return await this.aiProvider.callChat(request);
+      const t = Date.now();
+      const res = await this.aiProvider.callChat(request);
+      logger.debug('ai_call_ok', { ms: Date.now() - t });
+      return res;
     } catch (error: any) {
-      console.error('Erro na chamada de IA:', error);
+      logger.error('ai_call_error', { 
+        error: error?.response?.data?.error?.message || (error instanceof Error ? error.message : 'unknown')
+      });
       if (error?.response?.data) {
         const chatGPTError: ChatGPTError = error.response.data;
         throw new Error(`Erro da API: ${chatGPTError.error.message}`);
@@ -119,23 +135,8 @@ INFORMAÇÕES IMPORTANTES SOBRE COMPONENTES STANDALONE:
   TestBed.configureTestingModule({ imports: [CommonModule] }); // FALTANDO o componente standalone
   TestBed.configureTestingModule({ declarations: [CalculatorComponent] }); // ERRADO para standalone
 
-FORMATO DE RESPOSTA:
-Você DEVE responder APENAS com um JSON válido e bem formado. NÃO inclua markdown, texto adicional ou comentários fora do JSON.
-
-IMPORTANTE SOBRE JSON:
-- NÃO use quebras de linha dentro de strings JSON, use \\n quando necessário
-- NÃO use aspas simples, use apenas aspas duplas
-- Escape caracteres especiais: " → \\", \n → \\n, \t → \\t
-- O campo testCode deve conter todo o código do teste como uma única string com \\n para quebras de linha
-
-Formato EXATO:
-{
-  "testCode": "código do teste completo com \\n para quebras de linha",
-  "explanation": "explicação detalhada dos testes gerados",
-  "testCases": ["caso 1", "caso 2"],
-  "dependencies": ["dependency1", "dependency2"],
-  "setupInstructions": "instruções se necessário"
-}
+RESPOSTA:
+Responda SOMENTE com o CÓDIGO DO TESTE, sem markdown, sem JSON, sem explicações. Não envolva em cercas de código.
 
 Linguagem: ${request.language}
 Framework: ${framework}
@@ -184,7 +185,7 @@ Tipo de teste: ${testType}`;
       prompt += `Instruções adicionais: ${request.additionalInstructions}\n\n`;
     }
     
-    prompt += `Por favor, responda APENAS com o JSON conforme especificado nas instruções do sistema.`;
+    prompt += `Responda SOMENTE com o CÓDIGO DO TESTE (sem markdown, sem JSON).`;
     
     return prompt;
   }
@@ -192,7 +193,7 @@ Tipo de teste: ${testType}`;
   /**
    * Faz o parse da resposta do ChatGPT para UnitTestResponse
    */
-  private parseUnitTestResponse(response: ChatGPTResponse): UnitTestResponse {
+  private async parseUnitTestResponse(response: ChatGPTResponse): Promise<UnitTestResponse> {
     try {
       const content = response.choices[0]?.message?.content;
       
@@ -200,9 +201,33 @@ Tipo de teste: ${testType}`;
         throw new Error('Resposta vazia do ChatGPT');
       }
 
-      // Salva o conteúdo original para debug
-      const originalContent = content;
-      // debug: conteúdo original suprimido em produção
+      // Registrar conteúdo bruto para diagnóstico (preview e arquivo completo)
+      logger.debug('ai_response_raw', { length: content.length, preview: content.substring(0, 500) });
+      writeRaw('ai-response', content, 'txt');
+
+      // 0) Caminho rápido: extrair código puro se houver cercas ou se parecer código
+      const fenced = content.match(/```(typescript|ts|javascript|js)?\s*([\s\S]*?)\s*```/);
+      if (fenced && fenced[2]) {
+        const codeOnly = fenced[2].trim();
+        return {
+          testCode: this.fixUnclosedBlocks(codeOnly),
+          explanation: 'Código retornado diretamente pela IA',
+          testCases: [],
+          dependencies: [],
+          setupInstructions: ''
+        };
+      }
+      const looksLikeCode = /describe\(|import\s+|TestBed\.|expect\(/.test(content);
+      if (looksLikeCode) {
+        const codeOnly = content.trim();
+        return {
+          testCode: this.fixUnclosedBlocks(codeOnly),
+          explanation: 'Código retornado diretamente pela IA',
+          testCases: [],
+          dependencies: [],
+          setupInstructions: ''
+        };
+      }
 
       // Tenta extrair JSON da resposta (pode estar dentro de markdown)
       let jsonContent = content;
@@ -222,10 +247,20 @@ Tipo de teste: ${testType}`;
         }
       }
 
-      // preview do json para parse suprimido
+      // Registrar tentativa de JSON extraído
+      logger.debug('ai_response_json_attempt', { length: jsonContent.length, preview: jsonContent.substring(0, 500) });
+      writeRaw('ai-response-json', jsonContent, 'json');
 
       // Tenta fazer o parse do JSON
-      const parsedResponse = JSON.parse(jsonContent);
+      let parsedResponse: any;
+      try {
+        parsedResponse = JSON.parse(jsonContent);
+      } catch (e) {
+        // Se o JSON estiver inválido, tentar normalização via IA
+        logger.warn('ai_response_json_invalid', { reason: e instanceof Error ? e.message : 'unknown' });
+        const normalized = await this.normalizeAiResponse(content);
+        parsedResponse = normalized;
+      }
 
       // Aceita formatos alternativos vindos do Stackspot Agent Chat
       let normalizedResponse: any = parsedResponse;
@@ -246,11 +281,48 @@ Tipo de teste: ${testType}`;
           testCode: parsedResponse.code,
           explanation: parsedResponse.explanation || 'Gerado via Stackspot Agent Chat'
         };
+      } else if (parsedResponse && parsedResponse.contents && !parsedResponse.testCode) {
+        // Heurística para respostas com { contents: "<código>" }
+        normalizedResponse = {
+          testCode: parsedResponse.contents,
+          explanation: parsedResponse.explanation || 'Conteúdo convertido automaticamente',
+          testCases: parsedResponse.testCases || [],
+          dependencies: parsedResponse.dependencies || [],
+          setupInstructions: parsedResponse.setupInstructions || ''
+        };
+      } else if (parsedResponse && Array.isArray(parsedResponse.tests)) {
+        const tests = parsedResponse.tests || [];
+        const codes = tests
+          .map((t: any) => (t && typeof t.code === 'string' ? t.code : ''))
+          .filter((c: string) => c.length > 0);
+        const descriptions = tests
+          .map((t: any) => (t && typeof t.description === 'string' ? t.description : ''))
+          .filter((d: string) => d.length > 0);
+        const mergedCode = codes.length > 0 ? codes.join('\n\n') : '';
+        normalizedResponse = {
+          testCode: mergedCode,
+          explanation: parsedResponse.explanation || 'Normalizado de coleção de testes',
+          testCases: parsedResponse.testCases || descriptions,
+          dependencies: parsedResponse.dependencies || [],
+          setupInstructions: parsedResponse.setupInstructions || ''
+        };
       }
 
-      // Valida se tem os campos obrigatórios
+      // Valida se tem os campos obrigatórios; se não tiver, tentar normalização via IA
       if (!normalizedResponse.testCode || !normalizedResponse.explanation) {
-        throw new Error('Resposta do ChatGPT não contém os campos obrigatórios');
+        logger.warn('ai_response_missing_fields');
+        const normalized = await this.normalizeAiResponse(jsonContent);
+        normalizedResponse = normalized;
+        if (!normalizedResponse.testCode || !normalizedResponse.explanation) {
+          // último fallback: trate a resposta inteira como código
+          return {
+            testCode: this.fixUnclosedBlocks(content.trim()),
+            explanation: 'Fallback: resposta tratada como código',
+            testCases: [],
+            dependencies: [],
+            setupInstructions: ''
+          };
+        }
       }
 
       // Limpa o testCode removendo escape characters duplicados
@@ -261,14 +333,12 @@ Tipo de teste: ${testType}`;
           .replace(/\\n/g, '\n')
           .replace(/\\r/g, '\r')
           .replace(/\\t/g, '\t')
-          .replace(/\\"/g, '"')
+          .replace(/\\\"/g, '"')
           .replace(/\\\\/g, '\\');
         
         // Corrige blocos não fechados
         testCode = this.fixUnclosedBlocks(testCode);
       }
-
-      // parse bem-sucedido
 
       return {
         testCode: testCode,
@@ -278,7 +348,7 @@ Tipo de teste: ${testType}`;
         setupInstructions: normalizedResponse.setupInstructions || ''
       };
     } catch (error) {
-      console.error('Erro ao fazer parse da resposta:', error);
+      logger.error('ai_response_parse_error', { error: error instanceof Error ? error.message : 'unknown' });
       
       // Tenta extrair informações úteis do erro
       let errorMessage = 'Erro desconhecido';
@@ -296,6 +366,89 @@ Tipo de teste: ${testType}`;
   }
 
   /**
+   * Pede para a IA normalizar qualquer conteúdo em um JSON no formato esperado
+   */
+  private async normalizeAiResponse(content: string): Promise<{ testCode: string; explanation: string; testCases?: string[]; dependencies?: string[]; setupInstructions?: string }>{
+    const system = `Você é um normalizador estrito. Sua única saída DEVE ser um JSON válido exatamente no formato abaixo. Não escreva nada além do JSON.
+
+FORMATO EXATO:
+{
+  "testCode": "código do teste completo com \\n para quebras de linha",
+  "explanation": "explicação do que foi gerado",
+  "testCases": ["caso 1"],
+  "dependencies": ["dep1"],
+  "setupInstructions": "instruções se necessário"
+}
+
+REGRAS:
+- Se o conteúdo já estiver em JSON, corrija quebras/aspas e normalize os campos para o formato acima.
+- Se vier texto/markdown com bloco de código (ex.: \`\`\`typescript ...\`\`\`), extraia SOMENTE o código e coloque em testCode como string única com \\n.
+- Nunca use markdown na resposta, nunca use comentários fora do JSON, nunca use aspas simples.
+`;
+    const messages = [
+      { role: 'system' as const, content: system },
+      { role: 'user' as const, content: `Conteúdo a normalizar:\n\n${content}` }
+    ];
+    const req: ChatGPTRequest = { messages, model: this.model, temperature: 0, max_tokens: this.maxTokens };
+    try {
+      const payload = JSON.stringify(req, null, 2);
+      writeRaw('ai-normalize-request', payload, 'json');
+    } catch {}
+    const res = await this.callChatGPT(req);
+    const raw = res.choices[0]?.message?.content || '';
+    writeRaw('ai-normalize-response', raw, 'txt');
+    // 1) JSON direto ou dentro de cercas ```json
+    let json = raw;
+    const jsonFence = raw.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonFence) json = jsonFence[1].trim();
+    let start = json.indexOf('{');
+    let end = json.lastIndexOf('}');
+    if (start !== -1 && end > start) {
+      const slice = json.substring(start, end + 1);
+      try {
+        return JSON.parse(slice);
+      } catch {}
+    }
+    try {
+      return JSON.parse(json);
+    } catch {}
+    // 2) Se não veio JSON válido, mas veio bloco de código
+    const codeFence = raw.match(/```(typescript|ts|javascript|js)?\s*([\s\S]*?)\s*```/);
+    if (codeFence) {
+      const code = codeFence[2].trim();
+      return {
+        testCode: code,
+        explanation: 'Normalizado de bloco de código',
+        testCases: [],
+        dependencies: [],
+        setupInstructions: ''
+      };
+    }
+    // 3) Heurística para campos alternativos em JSON simples
+    try {
+      const maybe = JSON.parse(raw);
+      const candidate = (maybe && (maybe.contents || maybe.content || maybe.code)) as string | undefined;
+      if (candidate) {
+        return {
+          testCode: String(candidate),
+          explanation: 'Normalizado de campos alternativos',
+          testCases: maybe.testCases || [],
+          dependencies: maybe.dependencies || [],
+          setupInstructions: maybe.setupInstructions || ''
+        };
+      }
+    } catch {}
+    // 4) Último recurso: tratar tudo como código
+    return {
+      testCode: raw.trim(),
+      explanation: 'Normalizado de texto livre',
+      testCases: [],
+      dependencies: [],
+      setupInstructions: ''
+    };
+  }
+
+  /**
    * Corrige um teste unitário que falhou
    */
   async fixUnitTestError(request: {
@@ -306,6 +459,8 @@ Tipo de teste: ${testType}`;
     filePath: string;
   }): Promise<UnitTestResponse> {
     try {
+      const t0 = Date.now();
+      logger.info('ai_fix_start', { component: request.componentName });
       const systemPrompt = this.buildFixErrorSystemPrompt();
       const userPrompt = this.buildFixErrorUserPrompt(request);
 
@@ -321,10 +476,19 @@ Tipo de teste: ${testType}`;
         max_tokens: this.maxTokens
       };
 
+      // Registrar o payload completo enviado para a IA (fix)
+      try {
+        const payload = JSON.stringify(chatRequest, null, 2);
+        logger.debug('ai_fix_request_built', { length: payload.length });
+        writeRaw('ai-fix-request', payload, 'json');
+      } catch {}
+
       const response = await this.callChatGPT(chatRequest);
-      return this.parseFixErrorResponse(response);
+      const parsed = this.parseFixErrorResponse(response);
+      logger.info('ai_fix_done', { ms: Date.now() - t0, hasCode: Boolean(parsed.testCode) });
+      return parsed;
     } catch (error) {
-      console.error('Erro ao corrigir teste unitário:', error);
+      logger.error('ai_fix_fail', { error: error instanceof Error ? error.message : 'unknown' });
       throw new Error(`Erro ao corrigir teste: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     }
   }
@@ -346,23 +510,8 @@ IMPORTANTE:
 - Se o componente é standalone, certifique-se de incluir no array imports do TestBed
 - Adicione TODOS os mocks necessários
 
-FORMATO DE RESPOSTA:
-Você DEVE responder APENAS com um JSON válido e bem formado. NÃO inclua markdown, texto adicional ou comentários fora do JSON.
-
-IMPORTANTE SOBRE JSON:
-- NÃO use quebras de linha dentro de strings JSON, use \\n quando necessário
-- NÃO use aspas simples, use apenas aspas duplas
-- Escape caracteres especiais: " → \\", \n → \\n, \t → \\t
-- O campo testCode deve conter todo o código do teste como uma única string com \\n para quebras de linha
-
-Formato EXATO:
-{
-  "testCode": "código do teste melhorado com \\n para quebras de linha",
-  "explanation": "explicação detalhada das melhorias realizadas",
-  "testCases": ["caso 1", "caso 2"],
-  "dependencies": ["dependency1", "dependency2"],
-  "setupInstructions": "instruções se necessário"
-}`;
+RESPOSTA:
+Responda SOMENTE com o CÓDIGO DO TESTE corrigido, sem markdown, sem JSON, sem explicações. Não envolva em cercas de código.`;
   }
 
   /**
@@ -448,7 +597,33 @@ INSTRUÇÕES:
         throw new Error('Resposta vazia do ChatGPT');
       }
 
-      // debug suprimido
+      // Registrar conteúdo bruto para diagnóstico
+      logger.debug('ai_fix_response_raw', { length: content.length, preview: content.substring(0, 500) });
+      writeRaw('ai-fix-response', content, 'txt');
+
+      // Caminho rápido: extrair código puro
+      const fenced = content.match(/```(typescript|ts|javascript|js)?\s*([\s\S]*?)\s*```/);
+      if (fenced && fenced[2]) {
+        const codeOnly = fenced[2].trim();
+        return {
+          testCode: this.fixUnclosedBlocks(codeOnly),
+          explanation: 'Código corrigido retornado diretamente pela IA',
+          testCases: [],
+          dependencies: [],
+          setupInstructions: ''
+        };
+      }
+      const looksLikeCode = /describe\(|import\s+|TestBed\.|expect\(/.test(content);
+      if (looksLikeCode) {
+        const codeOnly = content.trim();
+        return {
+          testCode: this.fixUnclosedBlocks(codeOnly),
+          explanation: 'Código corrigido retornado diretamente pela IA',
+          testCases: [],
+          dependencies: [],
+          setupInstructions: ''
+        };
+      }
 
       // Tenta extrair JSON da resposta (pode estar dentro de markdown)
       let jsonContent = content;
@@ -468,7 +643,8 @@ INSTRUÇÕES:
         }
       }
 
-      
+      logger.debug('ai_fix_response_json_attempt', { length: jsonContent.length, preview: jsonContent.substring(0, 500) });
+      writeRaw('ai-fix-response-json', jsonContent, 'json');
 
       const parsedResponse = JSON.parse(jsonContent);
 
@@ -486,7 +662,7 @@ INSTRUÇÕES:
           .replace(/\\n/g, '\n')
           .replace(/\\r/g, '\r')
           .replace(/\\t/g, '\t')
-          .replace(/\\"/g, '"')
+          .replace(/\\\"/g, '"')
           .replace(/\\\\/g, '\\');
         
         
@@ -507,7 +683,7 @@ INSTRUÇÕES:
         setupInstructions: parsedResponse.setupInstructions || ''
       };
     } catch (error) {
-      console.error('Erro ao fazer parse da resposta de correção:', error);
+      logger.error('ai_fix_response_parse_error', { error: error instanceof Error ? error.message : 'unknown' });
       
       // Tenta extrair informações úteis do erro
       let errorMessage = 'Erro desconhecido';
@@ -593,9 +769,10 @@ INSTRUÇÕES:
       };
 
       await this.callChatGPT(testRequest);
+      logger.info('ai_test_connection_ok');
       return true;
     } catch (error) {
-      console.error('Teste de conexão falhou:', error);
+      logger.warn('ai_test_connection_fail', { error: error instanceof Error ? error.message : 'unknown' });
       return false;
     }
   }

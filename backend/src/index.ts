@@ -8,6 +8,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
+import { logger, reqSummary } from '@/services/logger';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 
@@ -48,8 +49,16 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Middleware de logging
-app.use(morgan('combined'));
+// Middleware de logging (conciso)
+app.use(morgan('tiny'));
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    reqSummary(req.method, req.originalUrl || req.url, res.statusCode, ms);
+  });
+  next();
+});
 
 // Middleware para parsing
 app.use(express.json({ limit: '10mb' }));
@@ -68,6 +77,7 @@ app.use(errorHandler);
 // Configurar Socket.IO
 setupSocketHandlers(io);
 new TestGenerationSocketService(io);
+logger.info('server_started', { port: config.PORT });
 
 // Iniciar servidor
 const PORT = config.PORT || 3000;

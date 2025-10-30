@@ -13,6 +13,7 @@ import {
   ScanResult,
   ScanError
 } from '../types/angularComponent';
+import { logger } from './logger';
 
 export class AngularComponentScanner {
   private readonly defaultOptions: Required<ScanOptions> = {
@@ -38,6 +39,7 @@ export class AngularComponentScanner {
     const finalOptions = { ...this.defaultOptions, ...options };
     
     try {
+      logger.info('scan_start', { directoryPath });
       // Verificar se o diretório existe
       if (!existsSync(directoryPath)) {
         throw new Error(`Diretório não encontrado: ${directoryPath}`);
@@ -72,14 +74,17 @@ export class AngularComponentScanner {
 
       const scanTime = Date.now() - startTime;
 
-      return {
+      const res = {
         components,
         totalFiles: files.length,
         scannedFiles,
         errors,
         scanTime
       };
+      logger.info('scan_done', { directoryPath, components: components.length, files: files.length, ms: scanTime, errors: errors.length });
+      return res;
     } catch (error) {
+      logger.error('scan_fail', { directoryPath, error: error instanceof Error ? error.message : 'unknown' });
       return {
         components: [],
         totalFiles: 0,

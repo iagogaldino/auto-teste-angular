@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { logger } from '@/services/logger';
 
 export interface AppError extends Error {
   statusCode?: number;
@@ -14,12 +15,10 @@ export const errorHandler = (
   const statusCode = error.statusCode || 500;
   const message = error.message || 'Erro interno do servidor';
 
-  console.error('Erro capturado:', {
+  logger.error('unhandled_error', {
     message: error.message,
-    stack: error.stack,
     url: req.url,
-    method: req.method,
-    timestamp: new Date().toISOString()
+    method: req.method
   });
 
   res.status(statusCode).json({
