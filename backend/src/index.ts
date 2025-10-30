@@ -1,10 +1,13 @@
-import dotenv from 'dotenv';
-
-// Carregar variáveis de ambiente PRIMEIRO
-dotenv.config();
+// Carregar variáveis de ambiente (opcional no executável)
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  require('dotenv').config();
+} catch {}
 
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -73,14 +76,20 @@ app.use('/api/chatgpt', chatgptRoutes);
 app.use('/api/angular', angularRoutes);
 app.use('/api/config', configRoutes);
 
-// Servir frontend em produção (build unificado em dist/)
-if (process.env.NODE_ENV === 'production') {
-  const frontendPath = path.resolve(__dirname, '../frontend');
-  app.use(express.static(frontendPath));
-  // Rotas SPA: delega ao index.html (após APIs)
+// Servir frontend a partir de backend/public
+const baseDir = (process as any).pkg ? path.dirname(process.execPath) : path.resolve(__dirname, '..');
+const publicCandidates = [
+  path.join(baseDir, 'public', 'index.html'),
+  path.join(baseDir, 'public', 'browser', 'index.html'),
+  path.join(baseDir, 'public', 'frontend', 'browser', 'index.html')
+];
+const publicIndex = publicCandidates.find(p => fs.existsSync(p));
+if (publicIndex) {
+  const publicRoot = path.dirname(publicIndex);
+  app.use(express.static(publicRoot));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/health')) return next();
-    res.sendFile(path.join(frontendPath, 'index.html'));
+    res.sendFile(path.join(publicRoot, 'index.html'));
   });
 }
 

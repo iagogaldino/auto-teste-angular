@@ -1,0 +1,13 @@
+2025-10-30T13:22:24.534Z INFO server_started port=3001
+2025-10-30T13:22:28.072Z INFO http method=GET url=/ status=200 ms=75
+2025-10-30T13:22:28.167Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=200 ms=10
+2025-10-30T13:22:28.211Z INFO http method=GET url=/polyfills-5CFQRCPP.js status=200 ms=104
+2025-10-30T13:22:28.368Z INFO http method=GET url=/assets/sp.jpg status=200 ms=27
+2025-10-30T13:22:28.374Z INFO http method=GET url=/styles-FHTT7P4Z.css status=200 ms=36
+2025-10-30T13:22:28.485Z INFO http method=GET url=/main-UO4T7HFO.js status=200 ms=369
+2025-10-30T13:22:28.680Z INFO http method=GET url=/favicon.ico status=200 ms=31
+2025-10-30T13:22:37.461Z INFO scan_start directoryPath=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular
+2025-10-30T13:22:37.543Z INFO scan_done directoryPath=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular components=8 files=8 ms=82 errors=0
+2025-10-30T13:22:47.275Z INFO http method=GET url=/styles-FHTT7P4Z.css status=304 ms=3
+2025-10-30T13:22:47.305Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=304 ms=5
+2025-10-30T13:34:03.136Z INFO http method=GET url=/.well-known/appspecific/com.chrome.devtools.json status=304 ms=6

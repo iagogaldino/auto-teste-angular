@@ -8,10 +8,12 @@ import { SocketEvents, ScanProgressData, TestGenerationProgress, TestGenerationR
 })
 export class SocketService {
   private socket: Socket;
-  private readonly serverUrl = 'http://localhost:3000';
+  private readonly serverUrl: string = (typeof window !== 'undefined' && window.location && window.location.origin)
+    ? window.location.origin
+    : 'http://localhost:3000';
 
   constructor() {
-    this.socket = io(this.serverUrl);
+    this.socket = io(this.serverUrl, { transports: ['websocket', 'polling'] });
   }
 
   // Conectar ao servidor
