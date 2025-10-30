@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
+import { environment } from '../../environments/environment';
 import { Observable } from 'rxjs';
 import { SocketEvents, ScanProgressData, TestGenerationProgress, TestGenerationResult } from '../types/socket-events';
 
@@ -8,9 +9,12 @@ import { SocketEvents, ScanProgressData, TestGenerationProgress, TestGenerationR
 })
 export class SocketService {
   private socket: Socket;
-  private readonly serverUrl: string = (typeof window !== 'undefined' && window.location && window.location.origin)
-    ? window.location.origin
-    : 'http://localhost:3000';
+  private readonly serverUrl: string = (() => {
+    // Prefer environment if set
+    if (environment.socketUrl) return environment.socketUrl;
+    const isBrowser = typeof window !== 'undefined' && !!window.location;
+    return isBrowser ? window.location.origin : 'http://localhost:3000';
+  })();
 
   constructor() {
     this.socket = io(this.serverUrl, { transports: ['websocket', 'polling'] });

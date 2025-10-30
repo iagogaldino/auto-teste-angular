@@ -1,3 +1,36 @@
+Vamos analisar e corrigir seu teste unitário conforme solicitado.
+
+## Análise dos Erros
+
+1. **Importação do componente:**  
+   O import está correto:  
+   ```typescript
+   import { MathSuiteComponent } from './math-suite.component';
+   ```
+   (Você já está usando o nome base do arquivo, não há problema aqui.)
+
+2. **Uso de `jasmine.any(Number)`**  
+   O erro:  
+   ```
+   ReferenceError: jasmine is not defined
+   ```
+   O ambiente de teste provavelmente está usando Jest, que não fornece `jasmine.any`.  
+   **Correção:** Remova esse matcher. Apenas garantir que `isNaN(component.quot())` é suficiente.
+
+3. **Uso de `toBeTrue()` e `toBeFalse()`**  
+   O erro:  
+   ```
+   TypeError: expect(...).toBeTrue is not a function
+   ```
+   Estes métodos são exclusivos do Jasmine. No Jest, use `toBe(true)` e `toBe(false)`.
+
+---
+
+## Correção
+
+Aqui está o teste corrigido, com as chaves e parênteses corretamente fechados e os pontos acima ajustados.
+
+```typescript
 import { TestBed } from '@angular/core/testing';
 import { MathSuiteComponent } from './math-suite.component';
 import { CommonModule } from '@angular/common';
@@ -45,8 +78,8 @@ describe('MathSuiteComponent', () => {
 
     it('should return NaN for quot when b=0', () => {
       component.setB(0);
-      expect(component.quot()).toEqual(jasmine.any(Number));
-      expect(isNaN(component.quot())).toBeTrue();
+      // Em Jest, apenas testamos isNaN diretamente
+      expect(isNaN(component.quot())).toBe(true);
     });
 
     it('should compute pow', () => {
@@ -80,18 +113,18 @@ describe('MathSuiteComponent', () => {
   describe('Primality computed signals', () => {
     it('should check if a is prime', () => {
       component.setA(7);
-      expect(component.isAPrime()).toBeTrue();
+      expect(component.isAPrime()).toBe(true);
       component.setA(12);
-      expect(component.isAPrime()).toBeFalse();
+      expect(component.isAPrime()).toBe(false);
       component.setA(1);
-      expect(component.isAPrime()).toBeFalse();
+      expect(component.isAPrime()).toBe(false);
     });
 
     it('should check if b is prime', () => {
       component.setB(13);
-      expect(component.isBPrime()).toBeTrue();
+      expect(component.isBPrime()).toBe(true);
       component.setB(8);
-      expect(component.isBPrime()).toBeFalse();
+      expect(component.isBPrime()).toBe(false);
     });
   });
 
@@ -160,3 +193,15 @@ describe('MathSuiteComponent', () => {
     });
   });
 });
+```
+
+---
+
+### **Resumo das mudanças**
+
+- **Substituído**: `expect(...).toBeTrue()` por `expect(...).toBe(true)`
+- **Substituído**: `expect(...).toBeFalse()` por `expect(...).toBe(false)`
+- **Removido**: `jasmine.any(Number)` (não é necessário em Jest)
+- **Mantido**: Importação correta do componente conforme solicitado
+
+Esse teste agora deve rodar sem os erros mencionados, tanto em ambientes Jasmine quanto Jest, respeitando o padrão de importação que você pediu.

@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 import { Observable } from 'rxjs';
 
 export interface EnvironmentConfig {
@@ -24,9 +25,16 @@ export interface EnvironmentConfig {
   providedIn: 'root'
 })
 export class ConfigService {
-  private readonly apiUrl = ((typeof window !== 'undefined' && window.location && window.location.origin)
-    ? window.location.origin
-    : 'http://localhost:3000') + '/api/config';
+  private readonly apiUrl = (() => {
+    // Prefer environment if set
+    const base = environment.apiBaseUrl ?? '';
+    if (base) {
+      return `${base}/api/config`;
+    }
+    // Fallback to same-origin in production builds
+    const isBrowser = typeof window !== 'undefined' && !!window.location;
+    return (isBrowser ? window.location.origin : 'http://localhost:3000') + '/api/config';
+  })();
 
   constructor(private http: HttpClient) {}
 

@@ -71,3 +71,43 @@
 2025-10-30T14:21:04.502Z INFO ai_generate_done ms=4959 hasCode=true
 2025-10-30T14:21:05.506Z INFO ai_generate_start provider=stackspot model=gpt-3.5-turbo language=typescript
 2025-10-30T14:21:40.768Z INFO ai_generate_done ms=35262 hasCode=true
+2025-10-30T14:30:41.485Z INFO ai_generate_start provider=stackspot model=gpt-3.5-turbo language=typescript
+2025-10-30T14:30:55.137Z INFO ai_generate_done ms=13652 hasCode=true
+2025-10-30T14:31:30.123Z INFO jest_all_start cwd=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular
+2025-10-30T14:31:30.239Z INFO jest_all_done code=1 success=false preview='jest' is not recognized as an internal or external command,
+operable program or batch file.
+
+2025-10-30T14:31:43.744Z INFO jest_run_start cwd=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular file=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular/src\app\app.routes.spec.ts
+2025-10-30T14:31:51.667Z INFO jest_run_done code=1 success=false preview=ts-jest[config] (WARN) [94mmessage[0m[90m TS151001: [0mIf you have issues related to imports, you should consider setting `esModuleInterop` to `true` in your TypeScript configuration file (usually
+2025-10-30T14:32:57.122Z INFO ai_generate_start provider=stackspot model=gpt-3.5-turbo language=typescript
+2025-10-30T14:33:05.892Z INFO ai_generate_done ms=8770 hasCode=true
+2025-10-30T14:33:53.072Z INFO jest_run_start cwd=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular file=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular/src\app\app.spec.ts
+2025-10-30T14:33:57.449Z INFO jest_run_done code=0 success=true preview=ts-jest[config] (WARN) [94mmessage[0m[90m TS151001: [0mIf you have issues related to imports, you should consider setting `esModuleInterop` to `true` in your TypeScript configuration file (usually
+2025-10-30T14:36:11.470Z INFO http method=GET url=/ status=304 ms=1
+2025-10-30T14:36:11.499Z INFO http method=GET url=/polyfills-5CFQRCPP.js status=304 ms=2
+2025-10-30T14:36:11.500Z INFO http method=GET url=/main-M3R2SRWN.js status=304 ms=2
+2025-10-30T14:36:11.583Z INFO http method=GET url=/styles-FHTT7P4Z.css status=304 ms=2
+2025-10-30T14:36:11.584Z INFO http method=GET url=/assets/sp.jpg status=304 ms=2
+2025-10-30T14:36:11.665Z INFO http method=GET url=/favicon.ico status=304 ms=1
+2025-10-30T14:36:11.722Z INFO http method=GET url=/favicon.ico status=304 ms=1
+2025-10-30T14:36:13.819Z INFO scan_start directoryPath=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular
+2025-10-30T14:36:13.835Z INFO scan_done directoryPath=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular components=8 files=8 ms=16 errors=0
+2025-10-30T14:36:31.567Z INFO ai_generate_start provider=stackspot model=gpt-3.5-turbo language=typescript
+2025-10-30T14:37:08.676Z INFO ai_generate_done ms=37109 hasCode=true
+2025-10-30T14:37:09.682Z INFO ai_generate_start provider=stackspot model=gpt-3.5-turbo language=typescript
+2025-10-30T14:37:14.824Z INFO ai_generate_done ms=5142 hasCode=true
+2025-10-30T14:37:15.834Z INFO ai_generate_start provider=stackspot model=gpt-3.5-turbo language=typescript
+2025-10-30T14:37:23.535Z INFO ai_generate_done ms=7701 hasCode=true
+2025-10-30T14:38:05.927Z INFO jest_all_start cwd=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular
+2025-10-30T14:38:05.947Z INFO jest_all_done code=1 success=false preview='jest' is not recognized as an internal or external command,
+operable program or batch file.
+
+2025-10-30T14:38:19.071Z INFO jest_run_start cwd=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular file=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular/src\app\math-suite\math-suite.component.spec.ts
+2025-10-30T14:38:23.645Z INFO jest_run_done code=1 success=false preview=ts-jest[config] (WARN) [94mmessage[0m[90m TS151001: [0mIf you have issues related to imports, you should consider setting `esModuleInterop` to `true` in your TypeScript configuration file (usually
+2025-10-30T14:38:41.360Z INFO ai_fix_start component=math-suite.component
+2025-10-30T14:39:22.620Z INFO ai_fix_done ms=41260 hasCode=true
+2025-10-30T14:40:21.423Z INFO jest_run_start cwd=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular file=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular/src\app\delsuc\delsuc.spec.ts
+2025-10-30T14:40:25.265Z INFO jest_run_done code=0 success=true preview=ts-jest[config] (WARN) [94mmessage[0m[90m TS151001: [0mIf you have issues related to imports, you should consider setting `esModuleInterop` to `true` in your TypeScript configuration file (usually
+2025-10-30T14:40:32.687Z INFO jest_run_start cwd=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular file=C:\Users\iago_\Desktop\Projects\AutoUnitTest\v1\test-angular/src\app\calculator\calculator.component.spec.ts
+2025-10-30T14:40:36.748Z INFO jest_run_done code=0 success=true preview=ts-jest[config] (WARN) [94mmessage[0m[90m TS151001: [0mIf you have issues related to imports, you should consider setting `esModuleInterop` to `true` in your TypeScript configuration file (usually
+2025-10-30T14:41:02.482Z INFO http method=GET url=/api/config status=304 ms=1
