@@ -14,11 +14,13 @@
     "dev-frontend": "npm --workspace frontend start",
     "dev:backend": "npm --workspace backend run dev",
     "dev:frontend": "npm --workspace frontend start",
-    "build": "npm --workspace backend run build && npm --workspace frontend run build",
+    "build": "npm --workspace backend run build && npm --workspace frontend run build && npm run build:bundle",
+    "build:bundle": "shx rm -rf dist && shx mkdir -p dist/backend dist/frontend && shx cp -r backend/dist/* dist/backend/ && shx cp -r frontend/dist/* dist/frontend/",
     "install:all": "npm install"
   },
   "devDependencies": {
-    "concurrently": "^9.0.1"
+    "concurrently": "^9.0.1",
+    "shx": "^0.3.4"
   }
 }
 
