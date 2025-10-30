@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -71,6 +72,17 @@ app.use('/api/tests', testRoutes);
 app.use('/api/chatgpt', chatgptRoutes);
 app.use('/api/angular', angularRoutes);
 app.use('/api/config', configRoutes);
+
+// Servir frontend em produção (build unificado em dist/)
+if (process.env.NODE_ENV === 'production') {
+  const frontendPath = path.resolve(__dirname, '../frontend');
+  app.use(express.static(frontendPath));
+  // Rotas SPA: delega ao index.html (após APIs)
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/health')) return next();
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  });
+}
 
 // Middleware de tratamento de erros
 app.use(notFoundHandler);
