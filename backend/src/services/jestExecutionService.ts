@@ -4,6 +4,13 @@ import { join, dirname, basename, resolve } from 'path';
 import { existsSync } from 'fs';
 import { logger } from './logger';
 
+// Remove códigos ANSI para tornar o log legível no frontend
+const stripAnsi = (input: string): string => {
+  // eslint-disable-next-line no-control-regex
+  const ansiRegex = /[\u001B\u009B][[\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
+  return input.replace(ansiRegex, '');
+};
+
 export interface JestExecutionOptions {
   projectPath: string;
   testFilePath: string;
@@ -92,20 +99,22 @@ export class JestExecutionService extends EventEmitter {
       // Capturar saída padrão
       jestProcess.stdout?.on('data', (data) => {
         const chunk = data.toString();
-        output += chunk;
+        const clean = stripAnsi(chunk);
+        output += clean;
         this.emit('output', {
           testFilePath,
-          output: chunk
+          output: clean
         });
       });
 
       // Capturar saída de erro
       jestProcess.stderr?.on('data', (data) => {
         const chunk = data.toString();
-        errorOutput += chunk;
+        const clean = stripAnsi(chunk);
+        errorOutput += clean;
         this.emit('output', {
           testFilePath,
-          output: chunk
+          output: clean
         });
       });
 
@@ -258,20 +267,22 @@ export class JestExecutionService extends EventEmitter {
       // Capturar saída padrão
       jestProcess.stdout?.on('data', (data) => {
         const chunk = data.toString();
-        output += chunk;
+        const clean = stripAnsi(chunk);
+        output += clean;
         this.emit('output', {
           testFilePath: 'all-tests',
-          output: chunk
+          output: clean
         });
       });
 
       // Capturar saída de erro
       jestProcess.stderr?.on('data', (data) => {
         const chunk = data.toString();
-        errorOutput += chunk;
+        const clean = stripAnsi(chunk);
+        errorOutput += clean;
         this.emit('output', {
           testFilePath: 'all-tests',
-          output: chunk
+          output: clean
         });
       });
 
