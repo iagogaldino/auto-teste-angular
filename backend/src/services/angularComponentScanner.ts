@@ -173,9 +173,19 @@ export class AngularComponentScanner {
    * Verifica se o arquivo contém um componente Angular
    */
   private isAngularComponent(content: string): boolean {
-    return content.includes('@Component') && 
-           content.includes('export class') &&
-           content.includes('Component');
+    // Verificar se tem o decorator @Component e uma classe exportada
+    const hasComponent = content.includes('@Component');
+    const hasExportClass = content.includes('export class');
+    
+    if (!hasComponent || !hasExportClass) {
+      return false;
+    }
+    
+    // Verificar se a classe está associada ao decorator @Component
+    // Isso garante que é realmente um componente, não apenas uma classe com "Component" no nome
+    const decoratorBoundClassMatch = content.match(/@Component[\s\S]*?export class\s+(\w+)/);
+    
+    return decoratorBoundClassMatch !== null;
   }
 
   /**
@@ -398,9 +408,22 @@ export class AngularComponentScanner {
     dependencies: string[]
   ): boolean {
     const selectorIsMaterial = selector?.startsWith('mat-') || selector?.startsWith('cdk-');
-    const nameIsMaterial = name?.startsWith('Mat');
-    const importsMaterial = imports?.some(i => i.includes('Mat') || i.includes('Cdk'));
-    const depsMaterial = dependencies?.some(d => d.includes('@angular/material') || d.includes('@angular/cdk'));
+    
+    // Apenas considerar como Material se o nome começa com "Mat" E tem outro caractere maiúsculo
+    // (ex: MatButton, MatCard - mas NÃO MathSuite, MathTest)
+    const nameIsMaterial = name?.startsWith('Mat') && name?.match(/^Mat[A-Z]/);
+    
+    // Verificar se importa módulos do Material (não componentes locais)
+    // Apenas marcar como Material se for um módulo/diretiva/componente do Material UI
+    const importsMaterial = imports?.some(i => 
+      (i.startsWith('Mat') || i.startsWith('Cdk')) && 
+      (i.endsWith('Module') || i.endsWith('Directive') || i.match(/^Mat[A-Z]/))
+    );
+    
+    // Verificar dependências de pacotes npm
+    const depsMaterial = dependencies?.some(d => 
+      d.includes('@angular/material') || d.includes('@angular/cdk')
+    );
 
     return Boolean(selectorIsMaterial || nameIsMaterial || importsMaterial || depsMaterial);
   }
