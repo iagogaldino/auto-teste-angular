@@ -1,0 +1,60 @@
+{
+  "name": "autounittest-backend",
+  "version": "1.0.0",
+  "description": "Backend para AutoUnitTest - Sistema de testes automatizados",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "nodemon --exec \"ts-node -r tsconfig-paths/register src/index.ts\"",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts",
+    "clean": "rimraf dist"
+  },
+  "keywords": [
+    "nodejs",
+    "typescript",
+    "testing",
+    "automation"
+  ],
+  "author": "Seu Nome",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "dotenv": "^16.3.1",
+    "compression": "^1.7.4",
+    "morgan": "^1.10.0",
+    "socket.io": "^4.7.4",
+    "openai": "^4.20.1",
+    "axios": "^1.6.2",
+    "glob": "^10.3.10",
+    "typescript": "^5.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/compression": "^1.7.5",
+    "@types/morgan": "^1.9.9",
+    "@types/socket.io": "^3.0.2",
+    "@types/axios": "^0.14.0",
+    "@types/glob": "^8.1.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "nodemon": "^3.0.2",
+    "ts-node": "^10.9.1",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.3.2",
+    "prettier": "^3.1.0",
+    "rimraf": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
