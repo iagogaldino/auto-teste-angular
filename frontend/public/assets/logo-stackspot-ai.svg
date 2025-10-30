@@ -1,0 +1,13 @@
+<svg width="160" height="32" viewBox="0 0 160 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="160" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#8E2DE2"/>
+      <stop offset="100%" stop-color="#4A00E0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="32" height="32" rx="8" fill="url(#grad)"/>
+  <path d="M8.5 21.5L14 10.5H17L22.5 21.5H19.8L18.4 18.6H12.6L11.2 21.5H8.5ZM13.2 16.5H17.8L15.5 11.8L13.2 16.5Z" fill="white"/>
+  <text x="40" y="22" font-family="Inter,Roboto,Segoe UI,Arial" font-size="16" font-weight="700" fill="#EDE9FE">Stackspot</text>
+  <text x="118" y="22" font-family="Inter,Roboto,Segoe UI,Arial" font-size="16" font-weight="700" fill="#A5B4FC">AI</text>
+</svg>
+

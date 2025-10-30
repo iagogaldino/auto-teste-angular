@@ -1,34 +1,39 @@
 // Variáveis CSS para tema escuro
 :root {
-  --mat-sys-primary: #6750a4;
+  /* Stackspot AI inspired palette (purple/indigo with cyan accent) */
+  --mat-sys-primary: #8e2de2;
   --mat-sys-on-primary: #ffffff;
-  --mat-sys-primary-container: #eaddff;
-  --mat-sys-on-primary-container: #21005d;
-  --mat-sys-secondary: #625b71;
+  --mat-sys-primary-container: #341a52;
+  --mat-sys-on-primary-container: #f3e8ff;
+
+  --mat-sys-secondary: #4a00e0;
   --mat-sys-on-secondary: #ffffff;
-  --mat-sys-secondary-container: #e8def8;
-  --mat-sys-on-secondary-container: #1d192b;
-  --mat-sys-tertiary: #7d5260;
-  --mat-sys-on-tertiary: #ffffff;
-  --mat-sys-tertiary-container: #ffd8e4;
-  --mat-sys-on-tertiary-container: #31111d;
-  --mat-sys-error: #ba1a1a;
+  --mat-sys-secondary-container: #231a4a;
+  --mat-sys-on-secondary-container: #e9e7ff;
+
+  --mat-sys-tertiary: #22d3ee;
+  --mat-sys-on-tertiary: #00232a;
+  --mat-sys-tertiary-container: #05323a;
+  --mat-sys-on-tertiary-container: #bff6ff;
+
+  --mat-sys-error: #ef4444;
   --mat-sys-on-error: #ffffff;
-  --mat-sys-error-container: #ffdad6;
-  --mat-sys-on-error-container: #410002;
-  --mat-sys-surface: #141218;
-  --mat-sys-on-surface: #e6e0e9;
-  --mat-sys-surface-variant: #49454f;
-  --mat-sys-on-surface-variant: #cac4d0;
-  --mat-sys-outline: #938f99;
-  --mat-sys-outline-variant: #49454f;
+  --mat-sys-error-container: #3a0d0d;
+  --mat-sys-on-error-container: #ffd2d2;
+
+  --mat-sys-surface: #0b0b10;
+  --mat-sys-on-surface: #e5e7eb;
+  --mat-sys-surface-variant: #15151d;
+  --mat-sys-on-surface-variant: #a1a1aa;
+  --mat-sys-outline: #2a2a35;
+  --mat-sys-outline-variant: #1f1f2a;
   --mat-sys-shadow: #000000;
   --mat-sys-scrim: #000000;
   --mat-sys-inverse-surface: #e6e0e9;
-  --mat-sys-inverse-on-surface: #322f35;
-  --mat-sys-inverse-primary: #d0bcff;
-  --mat-sys-surface-dim: #0e0e11;
-  --mat-sys-surface-bright: #36343b;
+  --mat-sys-inverse-on-surface: #1c1a22;
+  --mat-sys-inverse-primary: #c7b5ff;
+  --mat-sys-surface-dim: #0a0a0f;
+  --mat-sys-surface-bright: #1c1c26;
 }
 
 // Estilos globais
@@ -41,14 +46,42 @@
 
 // Header
 .app-header {
-  background: var(--mat-sys-primary) !important;
-  color: var(--mat-sys-on-primary) !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background: var(--mat-sys-surface) !important;
+  color: var(--mat-sys-on-surface) !important;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+
+.flow-stepper {
+  background: transparent;
+  margin-bottom: 10px;
+
+  .mat-mdc-step-header {
+    background: var(--mat-sys-surface);
+    border: 1px solid var(--mat-sys-outline);
+    border-radius: 999px;
+    margin-right: 8px;
+  }
+
+  .mdc-linear-progress__bar-inner {
+    border-color: var(--mat-sys-primary);
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-logo {
+  width: 120px;
+  height: 24px;
 }
 
 .app-title {
-  font-size: 1.2rem;
-  font-weight: 500;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
 }
 
 .spacer {
@@ -165,7 +198,7 @@
 
 .components-table .mat-mdc-header-cell,
 .test-results-table .mat-mdc-header-cell {
-  background: var(--mat-sys-primary);
+  background: linear-gradient(90deg, #8e2de2 0%, #4a00e0 100%);
   color: var(--mat-sys-on-primary);
   font-weight: 600;
   font-size: 0.9rem;

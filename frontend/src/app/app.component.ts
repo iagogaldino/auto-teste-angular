@@ -15,6 +15,8 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatStepperModule } from '@angular/material/stepper';
 
 @Component({
   selector: 'app-root',
@@ -31,7 +33,9 @@ import { MatChipsModule } from '@angular/material/chips';
     MatProgressBarModule,
     MatTableModule,
     MatCheckboxModule,
-    MatChipsModule
+    MatChipsModule,
+    MatExpansionModule,
+    MatStepperModule
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
