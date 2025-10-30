@@ -21,6 +21,17 @@ import { MatStepperModule, MatStepper } from '@angular/material/stepper';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatTreeModule } from '@angular/material/tree';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { NestedTreeControl } from '@angular/cdk/tree';
+import { MatTreeNestedDataSource } from '@angular/material/tree';
+import { SplashComponent } from './components/splash/splash.component';
+
+// PrismJS global (loaded via CDN in index.html)
+declare const Prism: any;
+
+// Tipo da árvore para representar a estrutura do projeto
+export interface TreeNode { name: string; path: string; children?: TreeNode[]; isFile: boolean; component?: AngularComponent; displayName?: string; result?: TestGenerationResult }
 
 @Component({
   selector: 'app-root',
@@ -42,7 +53,10 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
     MatStepperModule,
     MatSelectModule,
     MatTabsModule,
-    MatAutocompleteModule
+    MatAutocompleteModule,
+    MatTreeModule,
+    MatProgressSpinnerModule,
+    SplashComponent
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
@@ -67,6 +81,11 @@ export class AppComponent implements OnInit, OnDestroy {
   scannedComponents = signal<AngularComponent[]>([]);
   selectedFiles = signal<string[]>([]);
   
+  // Estrutura de árvore derivada dos componentes escaneados
+  // Controle e fonte de dados da árvore
+  treeControl = new NestedTreeControl<TreeNode>(node => node.children || []);
+  treeDataSource = new MatTreeNestedDataSource<TreeNode>();
+  
   // Progresso
   scanProgress = signal<ScanProgressData | null>(null);
   testProgress = signal<TestGenerationProgress | null>(null);
@@ -75,6 +94,38 @@ export class AppComponent implements OnInit, OnDestroy {
   fileContent = signal<string>('');
   currentFilePath = signal<string>('');
   testResults = signal<TestGenerationResult[]>([]);
+  resultsTreeNodes = computed<TreeNode[]>(() => this.testResults().map(r => ({
+    name: this.getFileName(r.filePath),
+    path: r.filePath,
+    isFile: true,
+    result: r
+  })));
+
+  // Exibição inline para resultados (código de teste)
+  resultExpanded = signal<{ [path: string]: boolean }>({});
+
+  isResultExpanded(path: string): boolean {
+    return !!this.resultExpanded()[path];
+  }
+
+  toggleResultInline(node: { result?: TestGenerationResult; path: string }): void {
+    if (!node.result) return;
+    const key = node.path;
+    const expanded = this.resultExpanded()[key];
+    this.resultExpanded.update(m => ({ ...m, [key]: !expanded }));
+    if (!expanded) {
+      setTimeout(() => { try { Prism && Prism.highlightAll(); } catch {} }, 0);
+    }
+  }
+
+  getResultInlineContent(node: { result?: TestGenerationResult }): string {
+    if (!node.result) return '';
+    return this.formatTestCode(node.result.testCode || '');
+  }
+  
+  // Exibição inline de arquivos na lista
+  inlineFileContents = signal<{ [path: string]: string }>({});
+  expandedFiles = signal<{ [path: string]: boolean }>({});
   
   // Execução de todos os testes
   allTestsOutput = signal<string>('');
@@ -140,6 +191,9 @@ export class AppComponent implements OnInit, OnDestroy {
   statusMessage = signal<string>('Conectando ao servidor...');
   errorMessage = signal<string>('');
 
+  // Splash screen control
+  showSplash = signal<boolean>(true);
+
   // Histórico de diretórios recentes
   private recentDirectoriesKey = 'recentDirectories';
   recentDirectories = signal<string[]>([]);
@@ -157,6 +211,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.setupSocketListeners();
     this.socketService.connect();
     this.loadRecentDirectories();
+    // Auto-hide splash after animation time (fallback)
+    setTimeout(() => this.showSplash.set(false), 3000);
   }
 
   ngOnDestroy(): void {
@@ -192,6 +248,9 @@ export class AppComponent implements OnInit, OnDestroy {
       this.isScanning.set(false);
       this.scanProgress.set(null);
       this.scannedComponents.set(data.result.components || []);
+      // Constrói a árvore a partir dos caminhos dos arquivos dos componentes
+      this.treeDataSource.data = this.buildTreeFromComponents(this.scannedComponents());
+      this.treeControl.dataNodes = this.treeDataSource.data;
       
       // Mensagem mais informativa
       const totalFiles = data.result.totalFiles || 0;
@@ -227,18 +286,24 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // Conteúdo do arquivo
     this.socketService.onFileContent().subscribe(data => {
-      this.fileContent.set(data.content);
-      this.currentFilePath.set(data.filePath);
+      // Não usamos mais modal; apenas cache para exibição inline
+      this.inlineFileContents.update(map => ({ ...map, [data.filePath]: data.content }));
       this.statusMessage.set(`Conteúdo carregado: ${data.filePath}`);
+      setTimeout(() => { try { Prism && Prism.highlightAll(); } catch {} }, 0);
     });
 
     this.socketService.onFileContentError().subscribe(data => {
+      // Se falhar ao carregar o arquivo, interrompe qualquer loading pendente
+      this.isFixingTest.set(false);
+      this.fixingTestFile.set('');
       this.errorMessage.set(`Erro ao carregar arquivo: ${data.error}`);
     });
 
     // Geração de testes
     this.socketService.onTestGenerationStarted().subscribe(data => {
       this.isGeneratingTests.set(true);
+      // Reset progress to force waiting animation until first progress arrives
+      this.testProgress.set(null);
       
       // Só limpa todos os resultados se for uma geração completa (não um retry)
       if (data.files.length > 1 || !this.testResults().some(r => r.error === 'Processando...')) {
@@ -603,9 +668,104 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
+  hasChild = (_: number, node: TreeNode) => !!node.children && node.children.length > 0;
+
+  private buildTreeFromComponents(components: AngularComponent[]): TreeNode[] {
+    // Lista plana de arquivos usando o tree como lista
+    const nodes: TreeNode[] = components.map(comp => {
+      const normalized = comp.filePath.replace(/\\/g, '/');
+      const fileName = normalized.split('/').pop() || normalized;
+      return {
+        name: fileName,
+        path: normalized,
+        isFile: true,
+        component: comp
+      } as TreeNode;
+    }).sort((a, b) => a.name.localeCompare(b.name));
+    return nodes;
+  }
+
+  private getCommonPrefixSegments(paths: string[]): string[] {
+    if (paths.length === 0) return [];
+    const splitPaths = paths.map(p => p.split('/').filter(s => !!s));
+    const first = splitPaths[0];
+    const prefix: string[] = [];
+    for (let i = 0; i < first.length; i++) {
+      const segment = first[i];
+      if (splitPaths.every(arr => arr[i] === segment)) {
+        prefix.push(segment);
+      } else {
+        break;
+      }
+    }
+    return prefix;
+  }
+
+  private getPreferredRootSegment(paths: string[]): string | null {
+    const firstSegments: Record<string, number> = {};
+    let hasSrcAnywhere = false;
+    for (const p of paths) {
+      const segs = p.split('/').filter(s => !!s);
+      if (segs.length === 0) continue;
+      firstSegments[segs[0]] = (firstSegments[segs[0]] || 0) + 1;
+      if (segs.includes('src')) hasSrcAnywhere = true;
+    }
+    // Se existir 'src' em qualquer caminho, usamos 'src' como raiz
+    if (hasSrcAnywhere) return 'src';
+    // Caso contrário, usa o primeiro segmento mais frequente
+    let best: string | null = null;
+    let count = -1;
+    for (const [seg, c] of Object.entries(firstSegments)) {
+      if (c > count) { best = seg; count = c; }
+    }
+    return best;
+  }
+
+  // Expande/recolhe todos os nós da árvore
+  expandAllNodes(): void {
+    const nodes = this.treeControl.dataNodes && this.treeControl.dataNodes.length > 0
+      ? this.treeControl.dataNodes
+      : this.treeDataSource.data;
+    nodes.forEach(n => this.treeControl.expandDescendants(n));
+  }
+
+  collapseAllNodes(): void {
+    const nodes = this.treeControl.dataNodes && this.treeControl.dataNodes.length > 0
+      ? this.treeControl.dataNodes
+      : this.treeDataSource.data;
+    nodes.forEach(n => this.treeControl.collapseDescendants(n));
+  }
+
+  private expandCollapseRecursive(node: TreeNode, expand: boolean): void {}
+
   viewFileContent(component: AngularComponent): void {
     const fullPath = `${this.directoryPath()}/${component.filePath}`;
     this.socketService.getFileContent(fullPath);
+  }
+
+  // Inline code viewing helpers
+  isFileExpanded(path: string): boolean {
+    return !!this.expandedFiles()[path];
+  }
+
+  getInlineContent(path: string): string {
+    // path recebido pode ser relativo; no cache usamos caminho completo
+    const fullPath = path.includes(this.directoryPath()) ? path : `${this.directoryPath()}/${path}`;
+    return this.inlineFileContents()[fullPath] || '';
+  }
+
+  toggleInlineFile(node: { path: string; component?: AngularComponent }): void {
+    const path = node.path;
+    const fullPath = `${this.directoryPath()}/${path}`;
+    const expanded = this.expandedFiles()[path];
+    this.expandedFiles.update(m => ({ ...m, [path]: !expanded }));
+    if (!expanded) {
+      // Expanding: load content if not cached
+      if (!this.inlineFileContents()[fullPath]) {
+        this.socketService.getFileContent(fullPath);
+      }
+      setTimeout(() => { try { Prism && Prism.highlightAll(); } catch {} }, 0);
+    }
   }
 
   generateTests(): void {
@@ -869,7 +1029,10 @@ export class AppComponent implements OnInit, OnDestroy {
      // O resultado.filePath é o arquivo original (ex: component.ts). Precisamos enviar o caminho .spec.ts (full path) e manter o original para mapeamento do card
      const specPath = this.generateTestFilePath(result.filePath);
      
-     // Chama o serviço para executar o teste
+    // Expande inline na lista de resultados para exibir o log ao lado
+    this.resultExpanded.update(m => ({ ...m, [result.filePath]: true }));
+
+    // Chama o serviço para executar o teste
      this.socketService.executeTest(specPath, result.testCode, result.filePath);
    }
 
@@ -1075,31 +1238,100 @@ export class AppComponent implements OnInit, OnDestroy {
     const result = this.selectedTestForPrompt();
     if (!result) return;
 
-    
-    
-    // Busca o componente original para enviar para a IA
-    const component = this.scannedComponents().find(c => c.filePath === result.filePath);
-    if (!component) {
-      this.errorMessage.set('Componente não encontrado para ajuste');
+    // Feedback imediato de loading
+    this.isFixingTest.set(true);
+    this.fixingTestFile.set(result.filePath);
+    this.statusMessage.set('🔄 Preparando dados para a IA...');
+
+    // Captura o prompt antes de fechar o modal (ele limpa o signal)
+    const promptMessage = (this.customPrompt() || '').trim();
+    if (!promptMessage) {
+      this.isFixingTest.set(false);
+      this.fixingTestFile.set('');
+      this.errorMessage.set('Por favor, preencha as instruções para a IA.');
       return;
     }
 
-    // Carrega o código do componente
-    const fullPath = `${this.directoryPath()}/${component.filePath}`;
+    // Normaliza o caminho para comparar com os componentes escaneados (que usam caminho relativo)
+    const baseDir = this.directoryPath();
+    const normalize = (p: string) => (p || '').replace(/\\/g, '/');
+    const base = normalize(baseDir);
+    const resultPath = normalize(result.filePath);
+
+    // Remove prefixo do diretório base se presente
+    let relativePath = resultPath;
+    if (base && (resultPath === base || resultPath.startsWith(base + '/'))) {
+      relativePath = resultPath.slice(base.length).replace(/^\//, '');
+    }
+
+    // Busca o componente original para enviar para a IA (comparação normalizada)
+    const component = this.scannedComponents().find(c => {
+      const compPath = normalize(c.filePath);
+      return compPath === relativePath || compPath === resultPath;
+    });
+    if (!component) {
+      this.errorMessage.set('Componente não encontrado para ajuste');
+      this.isFixingTest.set(false);
+      this.fixingTestFile.set('');
+      return;
+    }
+
+    // Carrega o código do componente e, depois, tenta carregar o código do teste (.spec.ts)
+    const compPathNorm = normalize(component.filePath);
+    const fullPath = compPathNorm.startsWith(base + '/') || compPathNorm === base
+      ? compPathNorm
+      : `${base}/${compPathNorm}`;
     this.socketService.getFileContent(fullPath);
-    
-    // Aguarda o conteúdo ser carregado e então envia para ajuste
-    const subscription = this.socketService.onFileContent().subscribe(data => {
-      if (data.filePath === fullPath) {
-        subscription.unsubscribe();
-        
-        this.socketService.fixTestError({
-          componentCode: data.content,
-          testCode: result.testCode || '',
-          errorMessage: this.customPrompt(),
-          componentName: component.name,
-          filePath: result.filePath
+
+    const subscription = this.socketService.onFileContent().subscribe(first => {
+      if (first.filePath === fullPath) {
+        // Validação do componente
+        const componentCode = (first.content || '').trim();
+        if (!componentCode) {
+          subscription.unsubscribe();
+          this.isFixingTest.set(false);
+          this.fixingTestFile.set('');
+          this.errorMessage.set('Não foi possível carregar o código do componente para enviar à IA.');
+          return;
+        }
+
+        // Agora tenta ler o .spec.ts atual do disco
+        const specRelative = this.generateTestFilePath(component.filePath);
+        const specFull = specRelative.startsWith(base + '/') || specRelative === base
+          ? specRelative
+          : `${base}/${specRelative}`;
+        this.socketService.getFileContent(specFull);
+
+        const specSub = this.socketService.onFileContent().subscribe(second => {
+          if (second.filePath === specFull) {
+            specSub.unsubscribe();
+            subscription.unsubscribe();
+            const testCodeToSend = (second.content || '').trim() || (result.testCode || '');
+            this.socketService.fixTestError({
+              componentCode,
+              testCode: testCodeToSend,
+              errorMessage: promptMessage,
+              componentName: component.name,
+              filePath: result.filePath
+            });
+          }
         });
+
+        // Fallback após 2s se não receber o arquivo de teste
+        setTimeout(() => {
+          try { specSub.unsubscribe(); } catch {}
+          try { subscription.unsubscribe(); } catch {}
+          if (this.isFixingTest()) {
+            const testCodeToSend = (result.testCode || '').trim();
+            this.socketService.fixTestError({
+              componentCode,
+              testCode: testCodeToSend,
+              errorMessage: promptMessage,
+              componentName: component.name,
+              filePath: result.filePath
+            });
+          }
+        }, 2000);
       }
     });
 

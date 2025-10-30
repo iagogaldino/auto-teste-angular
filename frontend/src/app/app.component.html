@@ -1,9 +1,11 @@
 <div class="app-container">
+  <app-splash *ngIf="showSplash()" (complete)="showSplash.set(false)"></app-splash>
+
   <!-- Header -->
   <mat-toolbar color="primary" class="app-header">
     <mat-toolbar-row>
       <div class="brand">
-        <img src="/assets/logo.png" alt="Logo" class="app-logo" width="139" height="24" />
+        <img src="/assets/logo-stackspot-ai.svg" alt="Logo" class="app-logo" width="139" height="24" />
         <span class="app-title">DelsucTest</span>
       </div>
       <span class="spacer"></span>
@@ -145,72 +147,48 @@
           </mat-chip>
         </div>
         
-        <mat-table [dataSource]="scannedComponents()" class="components-table">
-          <!-- Checkbox Column -->
-          <ng-container matColumnDef="select">
-            <mat-header-cell *matHeaderCellDef>
-              <mat-checkbox 
-                [checked]="selectedFiles().length === scannedComponents().length && scannedComponents().length > 0"
-                [indeterminate]="selectedFiles().length > 0 && selectedFiles().length < scannedComponents().length"
-                (change)="toggleAllFiles()"
-              ></mat-checkbox>
-            </mat-header-cell>
-            <mat-cell *matCellDef="let component">
-              <mat-checkbox 
-                [checked]="selectedFiles().includes(component.filePath)"
-                (change)="toggleFileSelection(component.filePath)"
-              ></mat-checkbox>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Component Name Column -->
-          <ng-container matColumnDef="component">
-            <mat-header-cell *matHeaderCellDef>Componente</mat-header-cell>
-            <mat-cell *matCellDef="let component">
-              <strong>{{ component.name }}</strong>
-            </mat-cell>
-          </ng-container>
-
-          <!-- File Path Column -->
-          <ng-container matColumnDef="file">
-            <mat-header-cell *matHeaderCellDef>Arquivo</mat-header-cell>
-            <mat-cell *matCellDef="let component">
-              <span class="path-text">{{ component.filePath }}</span>
-            </mat-cell>
-          </ng-container>
-
-          
-
-          <!-- Actions Column -->
-          <ng-container matColumnDef="actions">
-            <mat-header-cell *matHeaderCellDef>Ações</mat-header-cell>
-            <mat-cell *matCellDef="let component">
-              <button 
-                mat-icon-button
-                (click)="viewFileContent(component)" 
-                title="Ver código"
-                color="primary"
-              >
-                <mat-icon>visibility</mat-icon>
-              </button>
-              <button 
-                mat-icon-button
-                (click)="generateTestForComponent(component)"
-                [disabled]="isCreatingTest()"
-                title="Gerar teste"
-                color="accent"
-              >
-                <mat-icon>{{ isCreatingTest() ? 'hourglass_empty' : 'auto_awesome' }}</mat-icon>
-              </button>
-            </mat-cell>
-          </ng-container>
-
-          <mat-header-row *matHeaderRowDef="['select', 'actions', 'component', 'file']"></mat-header-row>
-          <mat-row 
-            *matRowDef="let row; columns: ['select', 'actions', 'component', 'file'];"
-            [class.selected]="selectedFiles().includes(row.filePath)"
-          ></mat-row>
-        </mat-table>
+        <mat-card class="tree-card">
+          <mat-card-header>
+            <mat-card-title>
+              <mat-icon>account_tree</mat-icon>
+              Estrutura do Projeto
+            </mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <mat-tree [dataSource]="treeDataSource" [treeControl]="treeControl" class="project-tree">
+              <!-- Arquivo (.ts) como lista plana -->
+              <mat-tree-node *matTreeNodeDef="let node" class="tree-file-node">
+                <button mat-icon-button disabled></button>
+                <mat-checkbox 
+                  [checked]="selectedFiles().includes(node.path)"
+                  (change)="toggleFileSelection(node.path)"
+                  [disabled]="!node.isFile"
+                  title="Selecionar arquivo"
+                ></mat-checkbox>
+                <mat-icon>description</mat-icon>
+                <span class="file-name clickable" (click)="toggleInlineFile(node)">
+                  {{ node.name }}
+                </span>
+                <span class="tree-actions" *ngIf="node.isFile && node.component">
+                  <button 
+                    mat-icon-button
+                    (click)="generateTestForComponent(node.component!)"
+                    [disabled]="isCreatingTest()"
+                    title="Gerar teste"
+                    color="accent"
+                  >
+                    <mat-icon>{{ isCreatingTest() ? 'hourglass_empty' : 'auto_awesome' }}</mat-icon>
+                  </button>
+                </span>
+                
+                <!-- Inline code viewer -->
+                <div class="inline-code" *ngIf="isFileExpanded(node.path)">
+                <pre><code class="language-typescript">{{ getInlineContent(node.path) }}</code></pre>
+                </div>
+              </mat-tree-node>
+            </mat-tree>
+          </mat-card-content>
+        </mat-card>
     </mat-expansion-panel>
     </mat-step>
 
@@ -230,13 +208,16 @@
         </button>
       </mat-card-header>
 
-      <mat-card-content>
-        <!-- Animated progress while starting generation -->
+      <mat-card-content class="generation-wrapper">
+        <!-- Animated placeholder while waiting first progress event -->
         <div class="progress-section" *ngIf="isGeneratingTests() && !testProgress()">
-          <mat-progress-bar 
-            mode="indeterminate"
-            color="primary"
-          ></mat-progress-bar>
+          <div class="loading-placeholder">
+            <div class="loading-bar"></div>
+          </div>
+          <div class="loading-status">
+            <mat-icon class="pulse">hourglass_empty</mat-icon>
+            Preparando geração...
+          </div>
         </div>
 
         <!-- Test Generation Progress -->
@@ -251,6 +232,14 @@
           </div>
         </div>
         
+        <!-- Overlay shown during entire generation -->
+        <div class="generation-overlay" *ngIf="isGeneratingTests()">
+          <div class="overlay-content">
+            <div class="dots"><span></span><span></span><span></span></div>
+            <div class="overlay-text">Gerando testes...</div>
+          </div>
+        </div>
+
         <!-- Test Generation Success Message -->
         <div class="scan-success" *ngIf="testsGenerated()">
           <div class="success-content">
@@ -271,102 +260,72 @@
           <mat-icon>assessment</mat-icon>
           Resultados dos Testes ({{ testResults().length }})
         </mat-panel-title>
-        <mat-panel-description>
-          <div class="results-summary">
-            <mat-chip color="primary">
-              <mat-icon>check_circle</mat-icon>
-              {{ successCount() }} Sucessos
-            </mat-chip>
-            <mat-chip color="warn" *ngIf="errorCount() > 0">
-              <mat-icon>error</mat-icon>
-              {{ errorCount() }} Erros
-            </mat-chip>
-          </div>
-        </mat-panel-description>
       </mat-expansion-panel-header>
 
-        <mat-table [dataSource]="testResults()" class="test-results-table">
-          <!-- Status Column -->
-          <ng-container matColumnDef="status">
-            <mat-header-cell *matHeaderCellDef>Status</mat-header-cell>
-            <mat-cell *matCellDef="let result">
-              <mat-chip [color]="result.success ? 'primary' : 'warn'">
-                <mat-icon>{{ result.success ? 'check_circle' : 'error' }}</mat-icon>
-                {{ result.success ? 'Sucesso' : 'Erro' }}
-              </mat-chip>
-            </mat-cell>
-          </ng-container>
-
-          <!-- File Column -->
-          <ng-container matColumnDef="file">
-            <mat-header-cell *matHeaderCellDef>Arquivo</mat-header-cell>
-            <mat-cell *matCellDef="let result">
-              <div class="file-info">
-                <div class="file-name">{{ getFileName(result.filePath) }}</div>
-                <div class="file-path">{{ result.filePath }}</div>
+        <mat-tree [dataSource]="resultsTreeNodes()" [treeControl]="treeControl" class="project-tree">
+          <mat-tree-node *matTreeNodeDef="let node" class="tree-file-node">
+            <mat-icon>description</mat-icon>
+            <span class="file-name clickable" (click)="toggleResultInline(node)">{{ node.name }}</span>
+            <span class="tree-actions">
+              <button 
+                mat-icon-button
+                (click)="copyTestCode(node.result!.testCode)"
+                title="Copiar código"
+                *ngIf="node.result?.success"
+                color="primary"
+              >
+                <mat-icon>content_copy</mat-icon>
+              </button>
+              <button 
+                mat-icon-button
+                (click)="createTestFile(node.result!)"
+                [disabled]="isCreatingTest()"
+                title="Criar arquivo"
+                *ngIf="node.result?.success"
+                color="accent"
+              >
+                <mat-icon>{{ isCreatingTest() ? 'hourglass_empty' : 'save' }}</mat-icon>
+              </button>
+              <button 
+                mat-icon-button
+                (click)="fixTestError(node.result!)"
+                [disabled]="isFixingTest()"
+                title="Ajustar código com IA"
+                color="primary"
+              >
+                <mat-icon>build</mat-icon>
+              </button>
+              <button 
+                mat-icon-button
+                (click)="executeTest(node.result!)"
+                [disabled]="isExecutingTest() || !node.result?.success"
+                title="Executar teste"
+                *ngIf="node.result?.success"
+                color="primary"
+              >
+                <mat-icon>{{ isExecutingTest() ? 'hourglass_empty' : 'play_arrow' }}</mat-icon>
+              </button>
+              <button 
+                mat-icon-button
+                (click)="retryTest(node.result!)"
+                [disabled]="isGeneratingTests()"
+                title="Refazer teste"
+                *ngIf="!node.result?.success"
+                color="warn"
+              >
+                <mat-icon>{{ isGeneratingTests() ? 'hourglass_empty' : 'refresh' }}</mat-icon>
+              </button>
+            </span>
+            <div class="inline-code split" *ngIf="isResultExpanded(node.path)">
+              <div class="code-pane">
+                <pre><code class="language-typescript">{{ getResultInlineContent(node) }}</code></pre>
               </div>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Actions Column -->
-          <ng-container matColumnDef="actions">
-            <mat-header-cell *matHeaderCellDef>Ações</mat-header-cell>
-            <mat-cell *matCellDef="let result">
-              <div class="action-buttons">
-                <button 
-                  mat-icon-button
-                  (click)="copyTestCode(result.testCode)"
-                  title="Copiar código"
-                  *ngIf="result.success"
-                  color="primary"
-                >
-                  <mat-icon>content_copy</mat-icon>
-                </button>
-                <button 
-                  mat-icon-button
-                  (click)="createTestFile(result)"
-                  [disabled]="isCreatingTest()"
-                  title="Criar arquivo"
-                  *ngIf="result.success"
-                  color="accent"
-                >
-                  <mat-icon>{{ isCreatingTest() ? 'hourglass_empty' : 'save' }}</mat-icon>
-                </button>
-                <button 
-                  mat-icon-button
-                  (click)="executeTest(result)"
-                  [disabled]="isExecutingTest() || !result.success"
-                  title="Executar teste"
-                  *ngIf="result.success"
-                  color="primary"
-                >
-                  <mat-icon>{{ isExecutingTest() ? 'hourglass_empty' : 'play_arrow' }}</mat-icon>
-                </button>
-                <button 
-                  mat-icon-button
-                  (click)="retryTest(result)"
-                  [disabled]="isGeneratingTests()"
-                  title="Refazer teste"
-                  *ngIf="!result.success"
-                  color="warn"
-                >
-                  <mat-icon>{{ isGeneratingTests() ? 'hourglass_empty' : 'refresh' }}</mat-icon>
-                </button>
-                <button 
-                  mat-icon-button
-                  (click)="viewTestDetails(result)"
-                  title="Ver detalhes"
-                  color="primary"
-                >
-                  <mat-icon>visibility</mat-icon>
-                </button>
+              <div class="log-pane" *ngIf="node.result?.testExecution" [ngClass]="getExecutionStatusClass(node.result!.testExecution!.status)">
+                <pre class="output-content">{{ node.result!.testExecution!.output }}</pre>
               </div>
-            </mat-cell>
-          </ng-container>
-
-          <mat-header-row *matHeaderRowDef="['status', 'file', 'actions']"></mat-header-row>
-          <mat-row *matRowDef="let row; columns: ['status', 'file', 'actions'];"></mat-row>
-        </mat-table>
+            </div>
+          </mat-tree-node>
+        </mat-tree>
     </mat-expansion-panel>
     <div class="no-data" *ngIf="testResults().length === 0">Gere testes para visualizar os resultados.</div>
     </mat-step>
@@ -408,31 +367,6 @@
   </div>
 
   <!-- Modals -->
-  <!-- File Content Modal -->
-  <div class="file-content-modal" *ngIf="fileContent()" (click)="closeFileContentModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h3>
-          <mat-icon>code</mat-icon>
-          Código do Arquivo: {{ getFileName(currentFilePath()) }}
-        </h3>
-        <button mat-icon-button (click)="closeFileContentModal()" class="close-modal">
-          <mat-icon>close</mat-icon>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="file-info-header">
-          <mat-chip color="accent">
-            <mat-icon>description</mat-icon>
-            {{ currentFilePath() }}
-          </mat-chip>
-        </div>
-        <div class="code-container">
-          <pre><code>{{ fileContent() }}</code></pre>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Test Details Modal -->
   <div class="test-details-modal" *ngIf="selectedTestResult()" (click)="closeTestDetails()">
@@ -588,29 +522,6 @@
         </button>
       </div>
       <div class="modal-body">
-        <div class="test-info" *ngIf="selectedTestForPrompt()">
-          <div class="test-header">
-            <h4>{{ getFileName(selectedTestForPrompt()!.filePath) }}</h4>
-            <span class="test-status" [class]="selectedTestForPrompt()!.success ? 'success' : 'error'">
-              {{ selectedTestForPrompt()!.success ? '✅ Sucesso' : '❌ Erro' }}
-            </span>
-          </div>
-          
-          <div class="error-section" *ngIf="!selectedTestForPrompt()!.success">
-            <h5>🐛 Erro Encontrado:</h5>
-            <div class="error-message">
-              {{ selectedTestForPrompt()!.error }}
-            </div>
-          </div>
-
-          <div class="test-code-preview">
-            <h5>📝 Código do Teste Atual:</h5>
-            <div class="code-preview">
-              <pre><code class="typescript">{{ selectedTestForPrompt()!.testCode }}</code></pre>
-            </div>
-          </div>
-        </div>
-
         <div class="prompt-section">
           <h5>💬 Instruções para a IA:</h5>
           <p class="prompt-description">
@@ -640,8 +551,14 @@
             (click)="processCustomPrompt()"
             [disabled]="!customPrompt().trim() || isFixingTest()"
           >
-            <mat-icon>{{ isFixingTest() ? 'hourglass_empty' : 'rocket_launch' }}</mat-icon>
-            {{ isFixingTest() ? 'Processando...' : 'Processar com IA' }}
+            <ng-container *ngIf="isFixingTest(); else rocketIcon">
+              <mat-progress-spinner class="btn-spinner" mode="indeterminate" [diameter]="18" [strokeWidth]="3"></mat-progress-spinner>
+              Processando...
+            </ng-container>
+            <ng-template #rocketIcon>
+              <mat-icon>rocket_launch</mat-icon>
+              Processar com IA
+            </ng-template>
           </button>
         </div>
       </div>
@@ -714,6 +631,17 @@
 
               <div *ngIf="configAiProvider() === 'stackspot'" class="stackspot-config">
                 <h4>Configurações StackSpot</h4>
+                <!-- Alerta informativo com link para criação de conta e agente -->
+                <div class="config-info">
+                  <mat-icon color="primary">info</mat-icon>
+                  <span>
+                    <p>Para utilizar o StackSpot, siga estes passos:</p>
+                    <p>1) Acesse <a href="https://ai.stackspot.com/" target="_blank" rel="noopener">ai.stackspot.com</a> e crie sua conta.</p>
+                    <p>2) Crie um Agente e copie o <strong>Client ID</strong> e o <strong>Client Key</strong>.</p>
+                    <p>3) Preencha os campos abaixo. O <em>Realm</em> mais comum é <code>stackspot-freemium</code>.</p>
+                  </span>
+                </div>
+
                 <mat-form-field appearance="fill">
                   <mat-label>Client ID</mat-label>
                   <input matInput type="password" [ngModel]="configStackspotClientId()" (ngModelChange)="configStackspotClientId.set($event)">

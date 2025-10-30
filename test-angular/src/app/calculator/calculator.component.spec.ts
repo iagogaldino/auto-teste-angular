@@ -8,12 +8,11 @@ describe('CalculatorComponent', () => {
     TestBed.configureTestingModule({
       imports: [CalculatorComponent]
     });
-    // Create the component instance
     const fixture = TestBed.createComponent(CalculatorComponent);
     component = fixture.componentInstance;
   });
 
-  it('should create the component', () => {
+  it('should create', () => {
     expect(component).toBeTruthy();
   });
 
@@ -21,14 +20,12 @@ describe('CalculatorComponent', () => {
     expect(component.result()).toBe(0);
   });
 
-  it('addTenPlusTen should return 20', () => {
-    expect(component.addTenPlusTen()).toBe(20);
-  });
-
-  it('calculate() should set result signal to 20', () => {
-    // result starts as 0
-    expect(component.result()).toBe(0);
+  it('should set result to 20 when calculate is called', () => {
     component.calculate();
     expect(component.result()).toBe(20);
+  });
+
+  it('addTenPlusTen should return 20', () => {
+    expect(component.addTenPlusTen()).toBe(20);
   });
 });

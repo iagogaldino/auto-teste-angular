@@ -484,10 +484,19 @@ export class TestGenerationSocketService {
     try {
       const { componentCode, testCode, errorMessage, componentName, filePath } = data;
       
-      if (!componentCode || !testCode || !errorMessage) {
-        console.error('Dados insuficientes para correção');
+      // Normaliza valores
+      const normComponentCode = (componentCode || '').trim();
+      const normErrorMessage = (errorMessage || '').trim();
+      const normTestCode = (testCode || '').trim();
+
+      // Permite testCode opcional; exigimos ao menos componentCode e uma mensagem (erro/prompt)
+      const missing: string[] = [];
+      if (!normComponentCode) missing.push('componentCode');
+      if (!normErrorMessage) missing.push('errorMessage');
+      if (missing.length > 0) {
+        console.error('Dados insuficientes para correção', { missing, filePath, componentName });
         socket.emit('test-fix-error', {
-          error: 'Dados insuficientes para correção do teste'
+          error: `Dados insuficientes para correção do teste: faltando ${missing.join(', ')}`
         });
         return;
       }
@@ -505,9 +514,9 @@ export class TestGenerationSocketService {
       // Usar o ChatGPT para corrigir o erro
       const chatGPTService = this.getChatGPTService();
       const fixedTest = await chatGPTService.fixUnitTestError({
-        componentCode,
-        testCode,
-        errorMessage,
+        componentCode: normComponentCode,
+        testCode: normTestCode,
+        errorMessage: normErrorMessage,
         componentName,
         filePath
       });

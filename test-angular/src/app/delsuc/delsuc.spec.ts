@@ -1,13 +1,14 @@
-import { TestBed, ComponentFixture } from '@angular/core/testing';
-import { Delsuc } from './delsuc';
+import { TestBed } from '@angular/core/testing';
+import { ComponentFixture } from '@angular/core/testing';
+import Delsuc from './delsuc';
 
 describe('Delsuc', () => {
-  let component: Delsuc;
   let fixture: ComponentFixture<Delsuc>;
+  let component: Delsuc;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [Delsuc]
+      imports: [Delsuc],
     }).compileComponents();
 
     fixture = TestBed.createComponent(Delsuc);
@@ -15,7 +16,7 @@ describe('Delsuc', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it('should create the component', () => {
     expect(component).toBeTruthy();
   });
 });

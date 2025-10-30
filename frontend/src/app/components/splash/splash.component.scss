@@ -1,0 +1,73 @@
+.splash-container {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #0f1114; // dark bg
+  z-index: 1000;
+  animation: fadeOut 3s forwards; // used only to emit complete
+}
+
+.splash-content {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+  align-items: center;
+  color: #fff;
+  padding: 0 28px;
+}
+
+.left { text-align: left; }
+.right { display: grid; place-items: center; }
+
+.logo {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: .5px;
+}
+.logo span { color: #ff7a1a; }
+
+.headline { margin-top: 10px; }
+.headline .line { font-size: 22px; font-weight: 700; opacity: 0; transform: translateY(10px); animation: lineIn .8s forwards; }
+.headline .l2 { color: #ff7a1a; animation-delay: .1s; }
+.headline .l3 { animation-delay: .2s; }
+.headline .l4 { animation-delay: .3s; }
+
+@keyframes lineIn { to { opacity: 1; transform: translateY(0); } }
+
+// Spiral swirl of orange particles (inspired by the reference image)
+.swirl {
+  width: 260px;
+  height: 260px;
+  position: relative;
+}
+
+.particle {
+  --i: 1;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  background: #ff7a1a;
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgba(255,122,26,.6);
+  // size scales with index (larger outside)
+  width: calc(4px + (var(--i) * 0.22px));
+  height: calc(4px + (var(--i) * 0.22px));
+  transform: rotate(calc(var(--i) * 10deg)) translateX(calc(var(--i) * 6px)) translate(-50%, -50%);
+  opacity: calc(.3 + (var(--i) * 0.015));
+  animation: swirl-rotate 3s linear infinite;
+}
+
+@keyframes swirl-rotate {
+  from { transform: rotate(calc(var(--i) * 10deg)) translateX(calc(var(--i) * 6px)) translate(-50%, -50%); }
+  to { transform: rotate(calc(360deg + var(--i) * 10deg)) translateX(calc(var(--i) * 6px)) translate(-50%, -50%); }
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  95% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
+

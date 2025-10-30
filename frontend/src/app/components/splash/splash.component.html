@@ -1,0 +1,21 @@
+<div class="splash-container" (animationend)="onAnimationEnd()">
+  <div class="splash-content">
+    <div class="left">
+      <div class="logo">StackSpot<span>AI</span></div>
+      <div class="headline">
+        <div class="line l1">Plataforma</div>
+        <div class="line l2">multiagentes</div>
+        <div class="line l3">você nunca teve</div>
+        <div class="line l4">tanto tempo para criar</div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="swirl">
+        <!-- 36 particles, positioned via CSS using index variable -->
+        <span class="particle" *ngFor="let _ of [].constructor(36); let i = index" [style.--i]="i + 1"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+

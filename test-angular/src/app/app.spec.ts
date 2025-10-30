@@ -16,11 +16,11 @@ describe('App', () => {
     fixture.detectChanges();
   });
 
-  it('should create the app component', () => {
+  it('should create the app', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should have title signal with value "test-angular"', () => {
+  it('should have "title" signal with default value "test-angular"', () => {
     expect(component.title()).toBe('test-angular');
   });
 });

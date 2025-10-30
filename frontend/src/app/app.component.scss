@@ -1,3 +1,6 @@
+.status-chip-icon-only {
+  .mdc-evolution-chip__text-label { display: none; }
+}
 // Variáveis CSS para tema escuro
 :root {
   /* Stackspot AI inspired palette (purple/indigo with cyan accent) */
@@ -166,6 +169,83 @@
   align-items: center;
 }
 
+// Tree card styling
+.tree-card {
+  margin-top: 12px;
+  background: var(--mat-sys-surface);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  .mat-mdc-card-header {
+    padding-bottom: 0;
+  }
+  .mat-mdc-card-content {
+    padding-top: 8px;
+  }
+}
+
+.project-tree {
+  .mat-tree-node,
+  .mat-nested-tree-node {
+    min-height: 36px;
+  }
+
+  .tree-folder .folder-name {
+    font-weight: 600;
+    margin-left: 6px;
+  }
+
+  .tree-file-node {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap; // permite quebrar linha para o bloco de código
+    gap: 8px;
+    .file-name { font-weight: 500; }
+    .file-name.clickable { cursor: pointer; text-decoration: underline; }
+    .file-path { opacity: 0.6; margin-left: 6px; font-size: 12px; }
+    .tree-actions { margin-left: auto; }
+  }
+}
+
+.inline-code {
+  flex: 0 0 100%; // ocupa a linha inteira abaixo
+  width: 100%;
+  margin-left: 56px; // indent to align under file row (approx checkbox+icon width)
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  pre { margin: 0; white-space: pre-wrap; }
+}
+
+.inline-code.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.inline-code .code-pane,
+.inline-code .log-pane {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.inline-code .log-pane.running {
+  background: rgba(255, 193, 7, 0.12); // amber
+  border-color: rgba(255, 193, 7, 0.35);
+}
+
+.inline-code .log-pane.success {
+  background: rgba(76, 175, 80, 0.12); // green
+  border-color: rgba(76, 175, 80, 0.35);
+}
+
+.inline-code .log-pane.error {
+  background: rgba(244, 67, 54, 0.12); // red
+  border-color: rgba(244, 67, 54, 0.35);
+}
+
 // Improve alignment between title icon and header action buttons
 .mat-expansion-panel-header {
   align-items: center;
@@ -247,6 +327,47 @@
     height: 8px;
     border-radius: 4px;
   }
+}
+
+// Animated placeholder while waiting for first progress event in Step 3
+.loading-placeholder {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.08);
+}
+
+.loading-placeholder .loading-bar {
+  position: absolute;
+  left: -40%;
+  top: 0;
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+  animation: step3-slide 1.1s infinite;
+}
+
+@keyframes step3-slide {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+
+.loading-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  opacity: 0.85;
+}
+
+.loading-status .pulse {
+  animation: step3-pulse 1.2s infinite ease-in-out;
+}
+
+@keyframes step3-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.12); opacity: 1; }
 }
 
 .progress-text {
@@ -334,6 +455,53 @@
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+// Step 3 overlay
+.generation-wrapper {
+  position: relative;
+}
+
+.generation-overlay {
+  position: static; // aparece no fluxo logo abaixo do texto
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; // não bloqueia cliques no conteúdo
+  margin-top: 10px; // fica abaixo de "1/3 - ..."
+}
+
+.generation-overlay .overlay-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  color: #fff;
+}
+
+.generation-overlay .dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.generation-overlay .dots span {
+  width: 6px;
+  height: 6px;
+  background: #fff;
+  border-radius: 50%;
+  animation: dots 1.1s infinite ease-in-out;
+}
+
+.generation-overlay .dots span:nth-child(2) { animation-delay: 0.15s; }
+.generation-overlay .dots span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes dots {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.6; }
+  40% { transform: scale(1); opacity: 1; }
 }
 
 // Tables
@@ -548,15 +716,17 @@
   max-width: 90vw;
   max-height: 90vh;
   overflow-y: auto;
+  overflow-x: hidden; // evita scroll horizontal desnecessário
   box-shadow: 0 8px 32px rgba(0,0,0,0.3);
 }
 
 .modal-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center; // centraliza o título no modal
   align-items: center;
   padding: 20px;
   border-bottom: 1px solid var(--mat-sys-outline);
+  position: relative; // permite posicionar o botão de fechar
 }
 
 .modal-header h3 {
@@ -565,14 +735,20 @@
   align-items: center;
   gap: 10px;
   color: var(--mat-sys-on-surface);
+  text-align: center;
 }
 
 .close-modal {
   color: var(--mat-sys-on-surface-variant);
+  position: absolute;
+  right: 16px;
 }
 
 .modal-body {
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center; // centraliza conteúdo do corpo
 }
 
 // File Info Header
@@ -887,6 +1063,8 @@
 
 .prompt-section {
   margin-bottom: 20px;
+  width: 100%;
+  max-width: 800px; // limita largura e centraliza junto com align-items
 }
 
 .prompt-section h5 {
@@ -911,6 +1089,7 @@
   font-size: 0.9rem;
   resize: vertical;
   min-height: 120px;
+  box-sizing: border-box; // impede que padding/borda aumentem a largura além de 100%
 }
 
 .prompt-textarea:focus {
@@ -921,8 +1100,13 @@
 .modal-actions {
   display: flex;
   gap: 10px;
-  justify-content: flex-end;
+  justify-content: center; // centraliza os botões
   margin-top: 20px;
+}
+
+// Spinner dentro de botões
+.btn-spinner {
+  margin-right: 8px;
 }
 
 // Responsive Design

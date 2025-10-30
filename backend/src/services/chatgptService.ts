@@ -484,13 +484,36 @@ REGRAS:
       } catch {}
 
       const response = await this.callChatGPT(chatRequest);
-      const parsed = this.parseFixErrorResponse(response);
+      let parsed = this.parseFixErrorResponse(response);
+
+      // Validação básica: precisa parecer um arquivo de teste Jest/Angular
+      const isValid = this.isValidTestCode(parsed.testCode || '');
+      if (!isValid) {
+        // Segundo intento com instruções mais fortes
+        const retryMessages = [
+          { role: 'system' as const, content: systemPrompt + '\n\nREQUISITOS RÍGIDOS: gere um teste COMPLETO para Jest + Angular, com imports necessários, configuração do TestBed e pelo menos 2 casos (it). Apenas código puro.' },
+          { role: 'user' as const, content: `${userPrompt}\n\nSua resposta anterior foi insuficiente. Gere um arquivo de teste completo (.spec.ts).` }
+        ];
+        const retryReq: ChatGPTRequest = { ...chatRequest, messages: retryMessages };
+        const retryRes = await this.callChatGPT(retryReq);
+        parsed = this.parseFixErrorResponse(retryRes);
+      }
+
       logger.info('ai_fix_done', { ms: Date.now() - t0, hasCode: Boolean(parsed.testCode) });
       return parsed;
     } catch (error) {
       logger.error('ai_fix_fail', { error: error instanceof Error ? error.message : 'unknown' });
       throw new Error(`Erro ao corrigir teste: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     }
+  }
+
+  private isValidTestCode(code: string): boolean {
+    const src = (code || '').trim();
+    if (src.length < 80) return false; // evita respostas triviais
+    const hasDescribe = /\bdescribe\s*\(/.test(src);
+    const hasIt = /\bit\s*\(/.test(src) || /\btest\s*\(/.test(src);
+    const hasImport = /\bimport\s+.*from\s+['"].+['"];?/.test(src);
+    return hasDescribe && hasIt && hasImport;
   }
 
   /**

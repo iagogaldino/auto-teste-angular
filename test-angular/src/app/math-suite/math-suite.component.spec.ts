@@ -6,10 +6,10 @@ describe('MathSuiteComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [MathSuiteComponent]
+      imports: [MathSuiteComponent],
     });
-    // Create component instance without rendering template
-    component = TestBed.createComponent(MathSuiteComponent).componentInstance;
+    const fixture = TestBed.createComponent(MathSuiteComponent);
+    component = fixture.componentInstance;
   });
 
   it('should create', () => {
@@ -17,175 +17,209 @@ describe('MathSuiteComponent', () => {
   });
 
   describe('initial values', () => {
-    it('should have default a=12, b=8', () => {
+    it('should have initial a=12 and b=8', () => {
       expect(component.a()).toBe(12);
       expect(component.b()).toBe(8);
     });
-
-    it('should compute correct sum', () => {
+    it('should compute sum, diff, prod, quot, pow', () => {
       expect(component.sum()).toBe(20);
-    });
-
-    it('should compute correct diff', () => {
       expect(component.diff()).toBe(4);
-    });
-
-    it('should compute correct prod', () => {
       expect(component.prod()).toBe(96);
-    });
-
-    it('should compute correct quot', () => {
       expect(component.quot()).toBe(1.5);
-    });
-
-    it('should compute correct pow', () => {
       expect(component.pow()).toBe(Math.pow(12, 8));
     });
-
-    it('should compute correct gcd', () => {
+    it('should compute gcd and lcm', () => {
       expect(component.gcd()).toBe(4);
-    });
-
-    it('should compute correct lcm', () => {
       expect(component.lcm()).toBe(24);
     });
-
-    it('should detect isAPrime and isBPrime', () => {
+    it('should evaluate isAPrime and isBPrime', () => {
       expect(component.isAPrime()).toBe(false); // 12 is not prime
-      expect(component.isBPrime()).toBe(true); // 8 is not prime, but 8 is not prime, so this should be false!
+      expect(component.isBPrime()).toBe(false); // 8 is not prime
     });
-
-    it('should calculate factorialA and factorialB', () => {
+    it('should compute factorialA and factorialB', () => {
       expect(component.factorialA()).toBe(479001600); // 12!
       expect(component.factorialB()).toBe(40320);     // 8!
     });
-
-    it('should calculate fibA and fibB', () => {
+    it('should compute fibA and fibB', () => {
       expect(component.fibA()).toBe(144); // fib(12)
       expect(component.fibB()).toBe(21);  // fib(8)
     });
   });
 
-  describe('setA/setB', () => {
-    it('should set a and update signals with number', () => {
+  describe('setA and setB', () => {
+    it('should set a and update signals', () => {
       component.setA(5);
       expect(component.a()).toBe(5);
-      expect(component.sum()).toBe(5 + component.b());
+      expect(component.sum()).toBe(13);
+      expect(component.diff()).toBe(-3);
+      expect(component.prod()).toBe(40);
+      expect(component.quot()).toBeCloseTo(0.625);
+      expect(component.pow()).toBe(Math.pow(5, 8));
     });
 
-    it('should set b and update signals with string number', () => {
-      component.setB('7');
-      expect(component.b()).toBe(7);
-      expect(component.sum()).toBe(component.a() + 7);
+    it('should set b and update signals', () => {
+      component.setB(3);
+      expect(component.b()).toBe(3);
+      expect(component.sum()).toBe(15);
+      expect(component.diff()).toBe(9);
+      expect(component.prod()).toBe(36);
+      expect(component.quot()).toBe(4);
+      expect(component.pow()).toBe(Math.pow(12, 3));
     });
 
-    it('should ignore NaN values for setA/setB', () => {
-      component.setA('foo');
+    it('should ignore NaN values in setA/setB', () => {
+      component.setA('abc');
       component.setB({});
-      expect(component.a()).not.toBeNaN();
-      expect(component.b()).not.toBeNaN();
+      expect(component.a()).toBe(12);
+      expect(component.b()).toBe(8);
+    });
+
+    it('should accept string numbers in setA/setB', () => {
+      component.setA('7');
+      component.setB('2');
+      expect(component.a()).toBe(7);
+      expect(component.b()).toBe(2);
     });
   });
 
-  describe('gcd and lcm edge cases', () => {
-    it('should handle gcd for zeros', () => {
+  describe('edge cases for gcd and lcm', () => {
+    it('gcd and lcm with zeros', () => {
       component.setA(0);
       component.setB(0);
       expect(component.gcd()).toBe(0);
       expect(component.lcm()).toBe(0);
+
+      component.setA(0);
+      component.setB(10);
+      expect(component.gcd()).toBe(10);
+      expect(component.lcm()).toBe(0);
+
+      component.setA(6);
+      component.setB(0);
+      expect(component.gcd()).toBe(6);
+      expect(component.lcm()).toBe(0);
     });
 
-    it('should handle negative values for gcd/lcm', () => {
-      component.setA(-18);
-      component.setB(24);
-      expect(component.gcd()).toBe(6);
-      expect(component.lcm()).toBe(72);
+    it('gcd and lcm with negatives', () => {
+      component.setA(-12);
+      component.setB(-8);
+      expect(component.gcd()).toBe(4);
+      expect(component.lcm()).toBe(24);
+
+      component.setA(-15);
+      component.setB(5);
+      expect(component.gcd()).toBe(5);
+      expect(component.lcm()).toBe(15);
     });
   });
 
-  describe('prime detection', () => {
-    it('should correctly detect primes', () => {
-      component.setA(13);
-      component.setB(17);
+  describe('isPrime logic', () => {
+    it('should detect primes correctly', () => {
+      component.setA(2);
+      component.setB(3);
       expect(component.isAPrime()).toBe(true);
       expect(component.isBPrime()).toBe(true);
 
+      component.setA(17);
+      component.setB(18);
+      expect(component.isAPrime()).toBe(true); // 17 is prime
+      expect(component.isBPrime()).toBe(false); // 18 is not
+    });
+
+    it('should return false for n <=1', () => {
       component.setA(1);
-      component.setB(0);
+      component.setB(-5);
       expect(component.isAPrime()).toBe(false);
       expect(component.isBPrime()).toBe(false);
 
-      component.setA(-7);
+      component.setA(0.9); // should floor to 0
       expect(component.isAPrime()).toBe(false);
 
-      component.setA(2);
+    });
+
+    it('should floor decimal input before prime check', () => {
+      component.setA(7.99); // floor to 7 (prime)
       expect(component.isAPrime()).toBe(true);
 
-      component.setA(9);
-      expect(component.isAPrime()).toBe(false);
+      component.setB(9.2); // floor to 9 (not prime)
+      expect(component.isBPrime()).toBe(false);
 
-      component.setA(97);
-      expect(component.isAPrime()).toBe(true);
     });
   });
 
   describe('factorialSafe', () => {
+    it('should return correct factorials for n >=0 && n <=20', () => {
+      component.setA(5);
+      component.setB(10);
+      expect(component.factorialA()).toBe(120); // 5!
+      expect(component.factorialB()).toBe(3628800); // 10!
+    });
+
     it('should return "NaN" for negative input', () => {
-      component.setA(-2);
+      component.setA(-1);
+      component.setB(-20.3);
       expect(component.factorialA()).toBe('NaN');
+      expect(component.factorialB()).toBe('NaN');
     });
 
-    it('should return "Overflow" for input > 20', () => {
+    it('should return "Overflow" for n > 20', () => {
       component.setA(21);
+      component.setB(1000);
       expect(component.factorialA()).toBe('Overflow');
+      expect(component.factorialB()).toBe('Overflow');
     });
 
-    it('should return 1 for input 0 or 1', () => {
-      component.setA(0);
-      expect(component.factorialA()).toBe(1);
+    it('should floor decimal input before factorial', () => {
+      component.setA(4.9); // floor to 4
+      expect(component.factorialA()).toBe(24);
 
-      component.setA(1);
-      expect(component.factorialA()).toBe(1);
+      component.setB(7.7); // floor to 7
+      expect(component.factorialB()).toBe(5040);
+
     });
   });
 
   describe('fibonacciSafe', () => {
-    it('should return "NaN" for negative input', () => {
-      component.setA(-5);
-      expect(component.fibA()).toBe('NaN');
-    });
-
-    it('should return "Overflow" for input > 70', () => {
-      component.setA(71);
-      expect(component.fibA()).toBe('Overflow');
-    });
-
-    it('should return fibonacci for valid n', () => {
-      component.setA(0);
-      expect(component.fibA()).toBe(0);
-
-      component.setA(1);
-      expect(component.fibA()).toBe(1);
-
+    it('should return correct fibonacci for n >=0 && n <=70', () => {
       component.setA(10);
-      expect(component.fibA()).toBe(55);
+      component.setB(15);
+      expect(component.fibA()).toBe(55);   // fib(10)
+      expect(component.fibB()).toBe(610);  // fib(15)
+    });
 
-      component.setA(20);
-      expect(component.fibA()).toBe(6765);
+    it('should return "NaN" for negative input', () => {
+      component.setA(-1.3);
+      component.setB(-5.1);
+      expect(component.fibA()).toBe('NaN');
+      expect(component.fibB()).toBe('NaN');
+    });
 
-      component.setA(70);
-      // The value is large, but let's check it's a number
-      const val = component.fibA();
-      expect(typeof val).toBe('number');
-      // Should be exact value: 190392490709135
-      expect(val).toBe(190392490709135);
+    it('should return "Overflow" for n > 70', () => {
+      component.setA(71.1);
+      component.setB(Number.MAX_SAFE_INTEGER);
+      expect(component.fibA()).toBe('Overflow');
+      expect(component.fibB()).toBe('Overflow');
+    });
+
+    it('should return correct values for n=0 and n=1', () => {
+      component.setA(0);
+      component.setB(1.99); // floor to 1
+      expect(component.fibA()).toBe(0);
+      expect(component.fibB()).toBe(1);
+
+    });
+
+    it('should floor decimal input before fibonacci', () => {
+      component.setA(8.7); // floor to 8
+      expect(component.fibA()).toBe(21);
+
     });
   });
 
-  describe('quotient edge cases', () => {
-    it('should return NaN when dividing by zero', () => {
+  describe('division by zero', () => {
+    it('quot should be NaN when b=0', () => {
       component.setB(0);
-      expect(isNaN(component.quot())).toBeTrue();
+      expect(Number.isNaN(component.quot())).toBeTrue();
     });
   });
 });
