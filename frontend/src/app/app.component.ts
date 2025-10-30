@@ -1,4 +1,4 @@
-import { Component, signal, computed, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { Component, signal, computed, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SocketService } from './services/socket.service';
@@ -140,6 +140,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   // Stepper reference
   @ViewChild(MatStepper) stepper?: MatStepper;
+  @ViewChild('allTestsOutputContainer') allTestsOutputContainer?: ElementRef<HTMLDivElement>;
 
   constructor(
     private socketService: SocketService,
@@ -423,6 +424,9 @@ export class AppComponent implements OnInit, OnDestroy {
           };
         }
       });
+
+      // Auto-scroll se o usuário estiver perto do final do log
+      setTimeout(() => this.scrollAllTestsToBottomIfNeeded(), 0);
     });
 
     this.socketService.onAllTestsCompleted().subscribe(data => {
@@ -447,6 +451,9 @@ export class AppComponent implements OnInit, OnDestroy {
           };
         }
       });
+
+      // Após concluir, rolar para o final
+      setTimeout(() => this.scrollAllTestsToBottomIfNeeded(), 0);
     });
 
     this.socketService.onAllTestsError().subscribe(data => {
@@ -471,6 +478,9 @@ export class AppComponent implements OnInit, OnDestroy {
           };
         }
       });
+
+      // Após erro, rolar para o final
+      setTimeout(() => this.scrollAllTestsToBottomIfNeeded(), 0);
     });
 
     // Correção de erros de teste
@@ -791,6 +801,8 @@ export class AppComponent implements OnInit, OnDestroy {
 
   // Método para executar todos os testes
   executeAllTests(): void {
+    
+    
     if (!this.directoryPath().trim()) {
       this.errorMessage.set('Por favor, selecione um diretório primeiro');
       return;
@@ -804,6 +816,9 @@ export class AppComponent implements OnInit, OnDestroy {
       output: 'Iniciando execução de todos os testes...\n',
       startTime: new Date()
     });
+
+    // Garantir que role para o fim ao iniciar
+    setTimeout(() => this.scrollAllTestsToBottomIfNeeded(), 0);
 
     this.socketService.executeAllTests(this.directoryPath());
   }
@@ -842,6 +857,23 @@ export class AppComponent implements OnInit, OnDestroy {
       case 'success': return 'Sucesso';
       case 'error': return 'Erro';
       default: return 'Desconhecido';
+    }
+  }
+
+  private scrollAllTestsToBottomIfNeeded(): void {
+    const container = this.allTestsOutputContainer?.nativeElement;
+    if (!container) return;
+
+    const threshold = 80; // px de tolerância para considerar que o usuário está no fim
+    const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - threshold;
+    if (isNearBottom) {
+      // Garante que o layout foi atualizado e repete após um pequeno delay
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+        setTimeout(() => {
+          container.scrollTop = container.scrollHeight;
+        }, 50);
+      });
     }
   }
 

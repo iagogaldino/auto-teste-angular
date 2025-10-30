@@ -112,6 +112,16 @@
               <mat-icon>clear_all</mat-icon>
               Limpar
             </button>
+            <button 
+              mat-raised-button 
+              color="primary" 
+              (click)="stepper.next()" 
+              [disabled]="selectedFiles().length === 0"
+              title="Ir para 3. Gerar"
+            >
+              <mat-icon>arrow_forward</mat-icon>
+              Ir para Gerar
+            </button>
           </div>
         </mat-panel-description>
       </mat-expansion-panel-header>
@@ -157,15 +167,7 @@
             </mat-cell>
           </ng-container>
 
-          <!-- Type Column -->
-          <ng-container matColumnDef="type">
-            <mat-header-cell *matHeaderCellDef>Tipo</mat-header-cell>
-            <mat-cell *matCellDef="let component">
-              <mat-chip [color]="component.isStandalone ? 'accent' : 'primary'">
-                {{ component.isStandalone ? 'Standalone' : 'Regular' }}
-              </mat-chip>
-            </mat-cell>
-          </ng-container>
+          
 
           <!-- Actions Column -->
           <ng-container matColumnDef="actions">
@@ -191,9 +193,9 @@
             </mat-cell>
           </ng-container>
 
-          <mat-header-row *matHeaderRowDef="['select', 'component', 'file', 'type', 'actions']"></mat-header-row>
+          <mat-header-row *matHeaderRowDef="['select', 'actions', 'component', 'file']"></mat-header-row>
           <mat-row 
-            *matRowDef="let row; columns: ['select', 'component', 'file', 'type', 'actions'];"
+            *matRowDef="let row; columns: ['select', 'actions', 'component', 'file'];"
             [class.selected]="selectedFiles().includes(row.filePath)"
           ></mat-row>
         </mat-table>
@@ -203,11 +205,7 @@
     <mat-step label="3. Gerar" [completed]="!!testProgress() || testResults().length > 0">
     <!-- Step 3: Generate Tests -->
     <mat-card class="step-card" *ngIf="hasSelectedFiles()">
-      <mat-card-header>
-        <mat-card-title>
-          <mat-icon>science</mat-icon>
-          Gerar Testes Unitários
-        </mat-card-title>
+      <mat-card-header class="centered-header">
         <button 
           mat-raised-button
           color="primary"
@@ -221,6 +219,14 @@
       </mat-card-header>
 
       <mat-card-content>
+        <!-- Animated progress while starting generation -->
+        <div class="progress-section" *ngIf="isGeneratingTests() && !testProgress()">
+          <mat-progress-bar 
+            mode="indeterminate"
+            color="primary"
+          ></mat-progress-bar>
+        </div>
+
         <!-- Test Generation Progress -->
         <div class="progress-section" *ngIf="testProgress()">
           <mat-progress-bar 
@@ -356,11 +362,8 @@
     <mat-step label="5. Executar" [completed]="allTestsExecution() && allTestsExecution()!.status !== 'running'">
     <!-- Step 5: Execute All Tests -->
     <mat-expansion-panel *ngIf="hasCreatedTests()">
-      <mat-expansion-panel-header>
-        <mat-panel-title>
-          <mat-icon>play_arrow</mat-icon>
-          Executar Todos os Testes
-        </mat-panel-title>
+      <mat-expansion-panel-header class="centered-panel-header">
+        <mat-panel-title class="visually-hidden"></mat-panel-title>
         <mat-panel-description>
           <button 
             mat-raised-button
@@ -377,12 +380,11 @@
 
       <!-- All Tests Execution Progress -->
       <div class="all-tests-execution" *ngIf="allTestsExecution()">
-        <div class="execution-status">
-          <span class="status-badge" [class]="getAllTestsExecutionStatusClass(allTestsExecution()!.status)">
-            {{ getAllTestsExecutionStatusText(allTestsExecution()!.status) }}
-          </span>
-        </div>
-        <div class="execution-output">
+        <div 
+          class="execution-output" 
+          [ngClass]="getAllTestsExecutionStatusClass(allTestsExecution()!.status)"
+          #allTestsOutputContainer
+        >
           <pre class="output-content">{{ allTestsExecution()!.output }}</pre>
         </div>
       </div>
