@@ -228,7 +228,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // Execução de testes
     this.socketService.onTestExecutionStarted().subscribe(data => {
-      console.log('🔔 Frontend: test-execution-started recebido', data);
+      
       this.isExecutingTest.set(true);
       this.statusMessage.set(`Iniciando execução do teste: ${data.filePath}`);
 
@@ -254,7 +254,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     this.socketService.onTestExecutionOutput().subscribe(data => {
-      console.log('📤 Frontend: test-execution-output recebido', data);
+      
       // Atualiza a saída do teste em tempo real
       this.testResults.update(results => {
         const updatedResults = [...results];
@@ -275,7 +275,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     this.socketService.onTestExecutionCompleted().subscribe(data => {
-      console.log('✅ Frontend: test-execution-completed recebido', data);
+      
       this.isExecutingTest.set(false);
       this.statusMessage.set(`Execução concluída: ${data.filePath} - ${data.status === 'success' ? 'Sucesso' : 'Erro'}`);
       
@@ -302,7 +302,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     this.socketService.onTestExecutionError().subscribe(data => {
-      console.log('❌ Frontend: test-execution-error recebido', data);
+      
       this.isExecutingTest.set(false);
       this.errorMessage.set(`Erro na execução: ${data.error}`);
       
@@ -330,7 +330,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // Execução de todos os testes
     this.socketService.onAllTestsOutput().subscribe(data => {
-      console.log('📤 Frontend: all-tests-output recebido', data);
+      
       this.allTestsOutput.update(output => output + data.output);
       
       // Atualiza o objeto de execução
@@ -351,7 +351,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     this.socketService.onAllTestsCompleted().subscribe(data => {
-      console.log('✅ Frontend: all-tests-completed recebido', data);
+      
       this.isExecutingAllTests.set(false);
       this.statusMessage.set(`Execução de todos os testes concluída: ${data.success ? 'Sucesso' : 'Erro'}`);
       
@@ -375,7 +375,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     this.socketService.onAllTestsError().subscribe(data => {
-      console.log('❌ Frontend: all-tests-execution-error recebido', data);
+      
       this.isExecutingAllTests.set(false);
       this.errorMessage.set(`Erro na execução de todos os testes: ${data.error}`);
       
@@ -400,16 +400,14 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // Correção de erros de teste
     this.socketService.onTestFixStarted().subscribe(data => {
-      console.log('🔧 [EVENT] test-fix-started recebido', data);
-      console.log('🔧 [EVENT] Iniciando correção para:', data.filePath);
+      
       this.isFixingTest.set(true);
       this.fixingTestFile.set(data.filePath);
       this.statusMessage.set(`🤖 IA iniciou correção do teste: ${data.componentName}`);
     });
 
     this.socketService.onTestFixed().subscribe(data => {
-      console.log('✅ [EVENT] test-fixed recebido', data);
-      console.log('✅ [EVENT] Correção concluída para:', data.filePath);
+      
       this.isFixingTest.set(false);
       this.fixingTestFile.set('');
       this.statusMessage.set(`✅ Teste corrigido com sucesso: ${data.componentName}`);
@@ -419,7 +417,7 @@ export class AppComponent implements OnInit, OnDestroy {
         const updatedResults = [...results];
         const resultIndex = updatedResults.findIndex(r => r.filePath === data.filePath);
         if (resultIndex !== -1) {
-          console.log('✅ [EVENT] Atualizando teste na lista, índice:', resultIndex);
+          
           // Atualiza apenas o teste específico
           const updatedTest: TestGenerationResult = {
             ...updatedResults[resultIndex],
@@ -436,13 +434,13 @@ export class AppComponent implements OnInit, OnDestroy {
           // Se o teste corrigido está sendo visualizado no modal, atualiza o selectedTestResult
           const currentSelected = this.selectedTestResult();
           if (currentSelected && currentSelected.filePath === data.filePath) {
-            console.log('✅ [EVENT] Atualizando selectedTestResult no modal');
+            
             this.selectedTestResult.set(updatedTest);
           }
           
           return updatedResults;
         } else {
-          console.log('✅ [EVENT] Adicionando novo teste à lista');
+          
           // Se não encontrar o teste na lista, adiciona como novo resultado
           const newResult: TestGenerationResult = {
             filePath: data.filePath,
@@ -460,8 +458,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     this.socketService.onTestFixError().subscribe(data => {
-      console.error('❌ [EVENT] test-fix-error recebido', data);
-      console.error('❌ [EVENT] Erro na correção:', data.error);
+      
       this.isFixingTest.set(false);
       this.fixingTestFile.set('');
       this.errorMessage.set(`Erro ao melhorar teste: ${data.error}`);
@@ -719,7 +716,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   // Métodos para execução de teste
   executeTest(result: TestGenerationResult): void {
-    console.log('🚀 Frontend: executeTest chamado', result.filePath);
+    
     
     if (!result.success || !result.testCode) {
       this.errorMessage.set('Não é possível executar teste: código inválido');
@@ -871,7 +868,7 @@ export class AppComponent implements OnInit, OnDestroy {
   // Método para refazer um teste específico
   retryTest(result: TestGenerationResult): void {
     if (!result.success) {
-      console.log('🔄 Refazendo teste para:', result.filePath);
+      
       
       // Marca que está refazendo este teste específico
       this.isGeneratingTests.set(true);
@@ -913,7 +910,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   // Método para abrir dialog de prompt customizado
   fixTestError(result: TestGenerationResult): void {
-    console.log('🔧 Abrindo dialog de prompt customizado para:', result.filePath);
+    
     
     // Define o teste selecionado e abre o dialog
     this.selectedTestForPrompt.set(result);
@@ -929,7 +926,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const result = this.selectedTestForPrompt();
     if (!result) return;
 
-    console.log('🔧 Processando prompt customizado para:', result.filePath);
+    
     
     // Busca o componente original para enviar para a IA
     const component = this.scannedComponents().find(c => c.filePath === result.filePath);
@@ -963,19 +960,16 @@ export class AppComponent implements OnInit, OnDestroy {
 
   // Método para gerar um novo teste baseado no erro de execução
   regenerateTestFromExecutionError(result: TestGenerationResult): void {
-    console.log('🔄 [DEBUG] Botão clicado - Regenerando teste com erro de execução');
-    console.log('🔄 [DEBUG] FilePath:', result.filePath);
-    console.log('🔄 [DEBUG] DirectoryPath:', this.directoryPath());
-    console.log('🔄 [DEBUG] TestExecution:', result.testExecution);
+    
     
     // Verifica se há um erro de execução
     if (!result.testExecution || result.testExecution.status !== 'error') {
-      console.error('❌ [DEBUG] Não há erro de execução para corrigir');
+      
       this.errorMessage.set('Não há erro de execução para corrigir');
       return;
     }
 
-    console.log('✅ [DEBUG] Erro de execução encontrado:', result.testExecution.output.substring(0, 200));
+    
 
     // Extrai o caminho relativo do filePath completo
     let relativePath = result.filePath;
@@ -984,46 +978,41 @@ export class AppComponent implements OnInit, OnDestroy {
     const directoryPath = this.directoryPath();
     if (directoryPath && result.filePath.includes(directoryPath)) {
       relativePath = result.filePath.replace(directoryPath, '').replace(/^[\/\\]+/, '');
-      console.log('📝 [DEBUG] Caminho relativo extraído:', relativePath);
+      
     }
     
     // Busca o componente original pelo caminho relativo
     const component = this.scannedComponents().find(c => c.filePath === relativePath);
     
     if (!component) {
-      console.error('❌ [DEBUG] Componente não encontrado');
-      console.error('❌ [DEBUG] Caminho procurado:', relativePath);
-      console.error('❌ [DEBUG] Componentes disponíveis:', this.scannedComponents().map(c => c.filePath));
+      
       this.errorMessage.set('Componente não encontrado');
       return;
     }
 
-    console.log('✅ [DEBUG] Componente encontrado:', component.name);
+    
 
     // Define que está corrigindo este teste específico
     this.isFixingTest.set(true);
     this.fixingTestFile.set(result.filePath);
     this.statusMessage.set(`🔄 Carregando código do componente: ${component.name}...`);
-    console.log('✅ [DEBUG] Estado atualizado - isFixingTest:', true, 'fixingTestFile:', result.filePath);
+    
 
     // Usa o filePath completo do resultado (que já é o caminho completo)
-    console.log('📁 [DEBUG] Carregando arquivo:', result.filePath);
+    
     this.socketService.getFileContent(result.filePath);
     
     // Aguarda o conteúdo ser carregado e então envia para ajuste
     const subscription = this.socketService.onFileContent().subscribe(data => {
-      console.log('📥 [DEBUG] Conteúdo do arquivo recebido:', data.filePath);
+      
       if (data.filePath === result.filePath) {
         subscription.unsubscribe();
-        console.log('✅ [DEBUG] Unsubscribed do file-content listener');
+        
         
         // Prepara a mensagem de erro com detalhes da execução
         const errorDetails = `Erro na execução do teste:\n\n${result.testExecution!.output}\n\nPor favor, corrija o teste para que ele execute com sucesso.`;
         
-        console.log('🚀 [DEBUG] Enviando para fixTestError');
-        console.log('📝 [DEBUG] ComponentCode length:', data.content.length);
-        console.log('📝 [DEBUG] TestCode length:', result.testCode?.length || 0);
-        console.log('📝 [DEBUG] ErrorDetails length:', errorDetails.length);
+        
         
         this.statusMessage.set(`🤖 Enviando para IA corrigir o teste...`);
         
@@ -1035,14 +1024,14 @@ export class AppComponent implements OnInit, OnDestroy {
           filePath: result.filePath
         });
         
-        console.log('✅ [DEBUG] fixTestError chamado com sucesso');
+        
       }
     });
     
     // Adiciona um timeout para debug caso algo dê errado
     setTimeout(() => {
       if (this.isFixingTest() && this.fixingTestFile() === result.filePath) {
-        console.warn('⏱️ [DEBUG] Timeout - parece que o processo está demorando mais que o esperado');
+        
       }
     }, 10000);
   }

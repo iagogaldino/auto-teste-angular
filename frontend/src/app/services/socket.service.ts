@@ -51,13 +51,13 @@ export class SocketService {
 
   // Executar teste
   executeTest(filePath: string, testCode: string, originalFilePath: string): void {
-    console.log('📡 Frontend: Enviando execute-test', { filePath, originalFilePath, testCodeLength: testCode.length });
+    
     this.socket.emit('execute-test', { filePath, testCode, originalFilePath });
   }
 
   // Executar todos os testes
   executeAllTests(projectPath: string): void {
-    console.log('📡 Frontend: Enviando execute-all-tests', { projectPath });
+    
     this.socket.emit('execute-all-tests', { projectPath });
   }
 
@@ -69,17 +69,11 @@ export class SocketService {
     componentName: string; 
     filePath: string; 
   }): void {
-    console.log('📡 [SOCKET] Enviando fix-test-error');
-    console.log('📡 [SOCKET] FilePath:', data.filePath);
-    console.log('📡 [SOCKET] ComponentName:', data.componentName);
-    console.log('📡 [SOCKET] ComponentCode length:', data.componentCode.length);
-    console.log('📡 [SOCKET] TestCode length:', data.testCode.length);
-    console.log('📡 [SOCKET] ErrorMessage length:', data.errorMessage.length);
-    console.log('📡 [SOCKET] Socket connected:', this.socket.connected);
+    
     
     this.socket.emit('fix-test-error', data);
     
-    console.log('✅ [SOCKET] Evento fix-test-error enviado com sucesso');
+    
   }
 
   // Observables para eventos do servidor
