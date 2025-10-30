@@ -2,6 +2,7 @@ import { Component, signal, computed, OnInit, OnDestroy, ViewChild } from '@angu
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SocketService } from './services/socket.service';
+import { ConfigService, EnvironmentConfig } from './services/config.service';
 import { AngularComponent, TestGenerationResult, ScanProgressData, TestGenerationProgress } from './types/socket-events';
 
 // Angular Material imports
@@ -17,6 +18,8 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatStepperModule, MatStepper } from '@angular/material/stepper';
+import { MatSelectModule } from '@angular/material/select';
+import { MatTabsModule } from '@angular/material/tabs';
 
 @Component({
   selector: 'app-root',
@@ -35,7 +38,9 @@ import { MatStepperModule, MatStepper } from '@angular/material/stepper';
     MatCheckboxModule,
     MatChipsModule,
     MatExpansionModule,
-    MatStepperModule
+    MatStepperModule,
+    MatSelectModule,
+    MatTabsModule
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
@@ -85,6 +90,37 @@ export class AppComponent implements OnInit, OnDestroy {
   selectedTestForPrompt = signal<TestGenerationResult | null>(null);
   customPrompt = signal<string>('');
   
+  // Modal de configuração
+  showConfigModal = signal<boolean>(false);
+  isSavingConfig = signal<boolean>(false);
+  configSaveSuccess = signal<boolean>(false);
+  configSaveMessage = signal<string>('');
+  configData = signal<EnvironmentConfig>({
+    NODE_ENV: 'development',
+    PORT: 3000,
+    CORS_ORIGIN: 'http://localhost:4200',
+    LOG_LEVEL: 'info',
+    OPENAI_API_KEY: '',
+    AI_PROVIDER: 'openai'
+  });
+  
+  // Individual config field signals for two-way binding
+  configNodeEnv = signal<string>('development');
+  configPort = signal<number>(3000);
+  configCorsOrigin = signal<string>('http://localhost:4200');
+  configLogLevel = signal<string>('info');
+  configOpenaiKey = signal<string>('');
+  configAiProvider = signal<'openai' | 'stackspot'>('openai');
+  configStackspotClientId = signal<string>('');
+  configStackspotClientKey = signal<string>('');
+  configStackspotRealm = signal<string>('');
+  configStackspotTokenUrl = signal<string>('');
+  configStackspotCompletionsUrl = signal<string>('');
+  configStackspotAgentChatUrl = signal<string>('');
+  configDatabaseUrl = signal<string>('');
+  configJwtSecret = signal<string>('');
+  configUserAgent = signal<string>('');
+  
   // Computed signals
   hasSelectedFiles = computed(() => this.selectedFiles().length > 0);
   canGenerateTests = computed(() => this.hasSelectedFiles() && !this.isGeneratingTests());
@@ -105,7 +141,10 @@ export class AppComponent implements OnInit, OnDestroy {
   // Stepper reference
   @ViewChild(MatStepper) stepper?: MatStepper;
 
-  constructor(private socketService: SocketService) {}
+  constructor(
+    private socketService: SocketService,
+    private configService: ConfigService
+  ) {}
 
   ngOnInit(): void {
     this.setupSocketListeners();
@@ -1077,5 +1116,121 @@ export class AppComponent implements OnInit, OnDestroy {
     this.showCustomPromptDialog.set(false);
     this.selectedTestForPrompt.set(null);
     this.customPrompt.set('');
+  }
+
+  // Métodos para configuração
+  openConfigModal(): void {
+    this.showConfigModal.set(true);
+    this.loadConfig();
+  }
+
+  closeConfigModal(): void {
+    this.showConfigModal.set(false);
+    // Limpa mensagens de sucesso ao fechar
+    this.configSaveSuccess.set(false);
+    this.configSaveMessage.set('');
+  }
+
+  loadConfig(): void {
+    this.configService.getConfig().subscribe({
+      next: (response) => {
+        if (response.success && response.config) {
+          const config = response.config;
+          this.configNodeEnv.set(config.NODE_ENV);
+          this.configPort.set(config.PORT);
+          this.configCorsOrigin.set(config.CORS_ORIGIN);
+          this.configLogLevel.set(config.LOG_LEVEL);
+          this.configOpenaiKey.set(config.OPENAI_API_KEY || '');
+          this.configAiProvider.set(config.AI_PROVIDER);
+          this.configStackspotClientId.set(config.STACKSPOT_CLIENT_ID || '');
+          this.configStackspotClientKey.set(config.STACKSPOT_CLIENT_KEY || '');
+          this.configStackspotRealm.set(config.STACKSPOT_REALM || '');
+          this.configStackspotTokenUrl.set(config.STACKSPOT_TOKEN_URL || '');
+          this.configStackspotCompletionsUrl.set(config.STACKSPOT_COMPLETIONS_URL || '');
+          this.configStackspotAgentChatUrl.set(config.STACKSPOT_AGENT_CHAT_URL || '');
+          this.configDatabaseUrl.set(config.DATABASE_URL || '');
+          this.configJwtSecret.set(config.JWT_SECRET || '');
+          this.configUserAgent.set(config.STACKSPOT_USER_AGENT || '');
+          this.configData.set(config);
+          
+          // Log para indicar a origem da configuração (útil para debug)
+          const responseAny = response as any;
+          if (responseAny.source) {
+            console.log(`Configuration loaded from: ${responseAny.source}`);
+          }
+        }
+      },
+      error: (error) => {
+        console.error('Error loading config:', error);
+        this.errorMessage.set('Erro ao carregar configuração');
+      }
+    });
+  }
+
+  saveConfig(): void {
+    this.isSavingConfig.set(true);
+    const configToSave: EnvironmentConfig = {
+      NODE_ENV: this.configNodeEnv(),
+      PORT: this.configPort(),
+      CORS_ORIGIN: this.configCorsOrigin(),
+      LOG_LEVEL: this.configLogLevel(),
+      OPENAI_API_KEY: this.configOpenaiKey(),
+      AI_PROVIDER: this.configAiProvider(),
+      STACKSPOT_CLIENT_ID: this.configStackspotClientId() || undefined,
+      STACKSPOT_CLIENT_KEY: this.configStackspotClientKey() || undefined,
+      STACKSPOT_REALM: this.configStackspotRealm() || undefined,
+      STACKSPOT_TOKEN_URL: this.configStackspotTokenUrl() || undefined,
+      STACKSPOT_COMPLETIONS_URL: this.configStackspotCompletionsUrl() || undefined,
+      STACKSPOT_AGENT_CHAT_URL: this.configStackspotAgentChatUrl() || undefined,
+      DATABASE_URL: this.configDatabaseUrl() || undefined,
+      JWT_SECRET: this.configJwtSecret() || undefined,
+      STACKSPOT_USER_AGENT: this.configUserAgent() || undefined
+    };
+    
+    this.configService.saveConfig(configToSave).subscribe({
+      next: (response) => {
+        if (response.success) {
+          // Mostra feedback de sucesso dentro do modal
+          this.configSaveSuccess.set(true);
+          this.configSaveMessage.set(response.message || 'Configuração salva com sucesso! Aplicada automaticamente.');
+          this.isSavingConfig.set(false);
+          
+          // Limpa a mensagem após 5 segundos
+          setTimeout(() => {
+            this.configSaveSuccess.set(false);
+            this.configSaveMessage.set('');
+          }, 5000);
+        }
+      },
+      error: (error) => {
+        console.error('Error saving config:', error);
+        // Mostra erro também dentro do modal
+        this.configSaveSuccess.set(false);
+        this.configSaveMessage.set('Erro ao salvar configuração. Tente novamente.');
+        this.isSavingConfig.set(false);
+        
+        // Limpa a mensagem de erro após 5 segundos
+        setTimeout(() => {
+          this.configSaveMessage.set('');
+        }, 5000);
+      }
+    });
+  }
+
+  applyConfig(): void {
+    this.configService.applyConfig().subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.statusMessage.set(response.message);
+          setTimeout(() => {
+            this.statusMessage.set('');
+          }, 5000);
+        }
+      },
+      error: (error) => {
+        console.error('Error applying config:', error);
+        this.errorMessage.set('Erro ao aplicar configuração');
+      }
+    });
   }
 }

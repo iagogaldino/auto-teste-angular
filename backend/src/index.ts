@@ -20,6 +20,7 @@ import { healthRoutes } from '@/routes/health';
 import { testRoutes } from '@/routes/tests';
 import chatgptRoutes from '@/routes/chatgpt';
 import angularRoutes from '@/routes/angular';
+import configRoutes from '@/routes/config';
 
 // Importar middleware
 import { errorHandler } from '@/middleware/errorHandler';
@@ -69,6 +70,7 @@ app.use('/health', healthRoutes);
 app.use('/api/tests', testRoutes);
 app.use('/api/chatgpt', chatgptRoutes);
 app.use('/api/angular', angularRoutes);
+app.use('/api/config', configRoutes);
 
 // Middleware de tratamento de erros
 app.use(notFoundHandler);

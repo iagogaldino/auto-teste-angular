@@ -7,6 +7,9 @@
         <span class="app-title">DelsucTest</span>
       </div>
       <span class="spacer"></span>
+      <button mat-icon-button (click)="openConfigModal()" title="Configurações" color="primary">
+        <mat-icon>settings</mat-icon>
+      </button>
       <mat-chip-listbox>
         <mat-chip [color]="isConnected() ? 'accent' : 'warn'">
           {{ isConnected() ? 'Conectado' : 'Desconectado' }}
@@ -632,6 +635,153 @@
           >
             <mat-icon>{{ isFixingTest() ? 'hourglass_empty' : 'rocket_launch' }}</mat-icon>
             {{ isFixingTest() ? 'Processando...' : 'Processar com IA' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Configuration Modal -->
+  <div class="config-modal" *ngIf="showConfigModal()" (click)="closeConfigModal()">
+    <div class="modal-content config-modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>
+          <mat-icon>settings</mat-icon>
+          Configuração do Sistema
+        </h3>
+        <button mat-icon-button (click)="closeConfigModal()" class="close-modal">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      <div class="modal-body">
+        <mat-tab-group>
+          <!-- Tab 1: Configurações Gerais -->
+          <mat-tab label="Geral">
+            <div class="config-form">
+              <mat-form-field appearance="fill">
+                <mat-label>Ambiente</mat-label>
+                <select matNativeControl [ngModel]="configNodeEnv()" (ngModelChange)="configNodeEnv.set($event)">
+                  <option value="development">Development</option>
+                  <option value="production">Production</option>
+                </select>
+              </mat-form-field>
+
+              <mat-form-field appearance="fill">
+                <mat-label>Porta do Servidor</mat-label>
+                <input matInput type="number" [ngModel]="configPort()" (ngModelChange)="configPort.set(+$event)">
+              </mat-form-field>
+
+              <mat-form-field appearance="fill">
+                <mat-label>CORS Origin</mat-label>
+                <input matInput [ngModel]="configCorsOrigin()" (ngModelChange)="configCorsOrigin.set($event)">
+              </mat-form-field>
+
+              <mat-form-field appearance="fill">
+                <mat-label>Nível de Log</mat-label>
+                <select matNativeControl [ngModel]="configLogLevel()" (ngModelChange)="configLogLevel.set($event)">
+                  <option value="debug">Debug</option>
+                  <option value="info">Info</option>
+                  <option value="warn">Warn</option>
+                  <option value="error">Error</option>
+                </select>
+              </mat-form-field>
+            </div>
+          </mat-tab>
+
+          <!-- Tab 2: Provedor de IA -->
+          <mat-tab label="Provedor de IA">
+            <div class="config-form">
+              <mat-form-field appearance="fill">
+                <mat-label>Provedor</mat-label>
+                <select matNativeControl [ngModel]="configAiProvider()" (ngModelChange)="configAiProvider.set($event)">
+                  <option value="openai">OpenAI</option>
+                  <option value="stackspot">StackSpot</option>
+                </select>
+              </mat-form-field>
+
+              <mat-form-field appearance="fill" *ngIf="configAiProvider() === 'openai'">
+                <mat-label>OpenAI API Key</mat-label>
+                <input matInput type="password" [ngModel]="configOpenaiKey()" (ngModelChange)="configOpenaiKey.set($event)">
+                <mat-hint>Chave da API OpenAI</mat-hint>
+              </mat-form-field>
+
+              <div *ngIf="configAiProvider() === 'stackspot'" class="stackspot-config">
+                <h4>Configurações StackSpot</h4>
+                <mat-form-field appearance="fill">
+                  <mat-label>Client ID</mat-label>
+                  <input matInput type="password" [ngModel]="configStackspotClientId()" (ngModelChange)="configStackspotClientId.set($event)">
+                </mat-form-field>
+
+                <mat-form-field appearance="fill">
+                  <mat-label>Client Key</mat-label>
+                  <input matInput type="password" [ngModel]="configStackspotClientKey()" (ngModelChange)="configStackspotClientKey.set($event)">
+                </mat-form-field>
+
+                <mat-form-field appearance="fill">
+                  <mat-label>Realm</mat-label>
+                  <input matInput [ngModel]="configStackspotRealm()" (ngModelChange)="configStackspotRealm.set($event)" placeholder="stackspot-freemium">
+                </mat-form-field>
+
+                <mat-form-field appearance="fill">
+                  <mat-label>Token URL</mat-label>
+                  <input matInput [ngModel]="configStackspotTokenUrl()" (ngModelChange)="configStackspotTokenUrl.set($event)">
+                </mat-form-field>
+
+                <mat-form-field appearance="fill">
+                  <mat-label>Completions URL</mat-label>
+                  <input matInput [ngModel]="configStackspotCompletionsUrl()" (ngModelChange)="configStackspotCompletionsUrl.set($event)">
+                </mat-form-field>
+
+                <mat-form-field appearance="fill">
+                  <mat-label>Agent Chat URL</mat-label>
+                  <input matInput [ngModel]="configStackspotAgentChatUrl()" (ngModelChange)="configStackspotAgentChatUrl.set($event)">
+                </mat-form-field>
+              </div>
+            </div>
+          </mat-tab>
+
+          <!-- Tab 3: Avançado -->
+          <mat-tab label="Avançado">
+            <div class="config-form">
+              <mat-form-field appearance="fill">
+                <mat-label>Database URL</mat-label>
+                <input matInput [ngModel]="configDatabaseUrl()" (ngModelChange)="configDatabaseUrl.set($event)">
+              </mat-form-field>
+
+              <mat-form-field appearance="fill">
+                <mat-label>JWT Secret</mat-label>
+                <input matInput type="password" [ngModel]="configJwtSecret()" (ngModelChange)="configJwtSecret.set($event)">
+              </mat-form-field>
+
+              <mat-form-field appearance="fill">
+                <mat-label>User Agent</mat-label>
+                <input matInput [ngModel]="configUserAgent()" (ngModelChange)="configUserAgent.set($event)">
+              </mat-form-field>
+            </div>
+          </mat-tab>
+        </mat-tab-group>
+
+        <div class="config-info">
+          <mat-icon color="primary">info</mat-icon>
+          <span>As configurações são aplicadas automaticamente após salvar. Não é necessário reiniciar o servidor.</span>
+        </div>
+
+        <!-- Feedback de salvamento -->
+        <div class="config-save-feedback" *ngIf="configSaveMessage()">
+          <div [class]="configSaveSuccess() ? 'save-success' : 'save-error'">
+            <mat-icon>{{ configSaveSuccess() ? 'check_circle' : 'error' }}</mat-icon>
+            <span>{{ configSaveMessage() }}</span>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button mat-raised-button color="warn" (click)="closeConfigModal()">
+            <mat-icon>cancel</mat-icon>
+            Cancelar
+          </button>
+          <button mat-raised-button color="primary" (click)="saveConfig()" [disabled]="isSavingConfig()">
+            <mat-icon>{{ isSavingConfig() ? 'hourglass_empty' : 'save' }}</mat-icon>
+            {{ isSavingConfig() ? 'Salvando...' : 'Salvar Configuração' }}
           </button>
         </div>
       </div>

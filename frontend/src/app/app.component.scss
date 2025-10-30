@@ -820,3 +820,121 @@
     flex-wrap: wrap;
   }
 }
+
+// Configuration Modal Styles
+.config-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.config-modal-content {
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+}
+
+.config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 20px 0;
+}
+
+.stackspot-config {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 20px;
+  padding: 20px;
+  background: var(--mat-sys-surface-variant);
+  border-radius: 8px;
+}
+
+.stackspot-config h4 {
+  margin: 0 0 15px 0;
+  color: var(--mat-sys-on-surface);
+  font-weight: 500;
+}
+
+.config-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px;
+  margin: 20px 0;
+  background: rgba(138, 45, 226, 0.1);
+  border-left: 4px solid var(--mat-sys-primary);
+  border-radius: 4px;
+  color: var(--mat-sys-on-primary-container);
+}
+
+.config-info span {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.config-save-feedback {
+  margin: 20px 0;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.save-success,
+.save-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 4px solid;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.save-success {
+  background: rgba(34, 197, 94, 0.1);
+  border-left-color: #22c55e;
+  color: #86efac;
+}
+
+.save-success mat-icon {
+  color: #22c55e;
+}
+
+.save-error {
+  background: rgba(239, 68, 68, 0.1);
+  border-left-color: var(--mat-sys-error);
+  color: var(--mat-sys-on-error-container);
+}
+
+.save-error mat-icon {
+  color: var(--mat-sys-error);
+}

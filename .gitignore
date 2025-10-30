@@ -22,6 +22,10 @@ backend/env.production.local
 frontend/.env
 frontend/.env.local
 
+# Config file (contains sensitive credentials)
+config.json
+backend/config.json
+
 # IDE / OS
 .vscode/
 .idea/
