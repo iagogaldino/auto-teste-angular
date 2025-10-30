@@ -629,63 +629,12 @@ export class AppComponent implements OnInit, OnDestroy {
 
   formatTestCode(code: string): string {
     if (!code) return '';
-    
-    // Remove caracteres de escape e formata o código (mesma lógica do createTestFile)
-    let formattedCode = code
-      .replace(/\\n/g, '\n')           // Converte \n para quebras de linha reais
-      .replace(/\\t/g, '\t')           // Converte \t para tabs reais
-      .replace(/\\"/g, '"')            // Converte \" para aspas duplas
-      .replace(/\\'/g, "'")            // Converte \' para aspas simples
-      .replace(/\\\\/g, '\\')          // Converte \\ para \
-      .replace(/\\r/g, '\r')           // Converte \r para retorno de carro
-      .trim();
-
-    // Se o código ainda não tem quebras de linha adequadas, tenta formatar
-    if (!formattedCode.includes('\n') && formattedCode.length > 100) {
-      // Tenta adicionar quebras de linha em pontos lógicos
-      formattedCode = formattedCode
-        .replace(/;/g, ';\n')          // Adiciona quebra após ponto e vírgula
-        .replace(/\{/g, '{\n')         // Adiciona quebra após {
-        .replace(/\}/g, '\n}')         // Adiciona quebra antes de }
-        .replace(/\)\s*\{/g, ') {\n')  // Adiciona quebra após ) {
-        .replace(/,\s*/g, ',\n')       // Adiciona quebra após vírgulas
-        .replace(/\n\s*\n/g, '\n')     // Remove linhas vazias duplicadas
-        .trim();
-    }
-
-    // Aplica indentação básica para melhorar a legibilidade
-    formattedCode = this.formatCode(formattedCode);
-    
-    return formattedCode;
+    return this.cleanAndFormatCode(code);
   }
 
   async copyTestCode(code: string): Promise<void> {
     try {
-      // Aplica a mesma formatação do createTestFile (sem syntax highlighting)
-      let cleanCode = code
-        .replace(/\\n/g, '\n')           // Converte \n para quebras de linha reais
-        .replace(/\\t/g, '\t')           // Converte \t para tabs reais
-        .replace(/\\"/g, '"')            // Converte \" para aspas duplas
-        .replace(/\\'/g, "'")            // Converte \' para aspas simples
-        .replace(/\\\\/g, '\\')          // Converte \\ para \
-        .replace(/\\r/g, '\r')           // Converte \r para retorno de carro
-        .trim();
-
-      // Se o código ainda não tem quebras de linha adequadas, tenta formatar
-      if (!cleanCode.includes('\n') && cleanCode.length > 100) {
-        // Tenta adicionar quebras de linha em pontos lógicos
-        cleanCode = cleanCode
-          .replace(/;/g, ';\n')          // Adiciona quebra após ponto e vírgula
-          .replace(/\{/g, '{\n')         // Adiciona quebra após {
-          .replace(/\}/g, '\n}')         // Adiciona quebra antes de }
-          .replace(/\)\s*\{/g, ') {\n')  // Adiciona quebra após ) {
-          .replace(/,\s*/g, ',\n')       // Adiciona quebra após vírgulas
-          .replace(/\n\s*\n/g, '\n')     // Remove linhas vazias duplicadas
-          .trim();
-      }
-
-      // Aplica indentação básica para melhorar a legibilidade
-      cleanCode = this.formatCode(cleanCode);
+      let cleanCode = this.cleanAndFormatCode(code);
         
       await navigator.clipboard.writeText(cleanCode);
       this.statusMessage.set('Código copiado para a área de transferência!');
@@ -710,30 +659,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.statusMessage.set('Criando arquivo de teste...');
 
       // Remove caracteres de escape do código e formata adequadamente
-      let cleanCode = result.testCode
-        .replace(/\\n/g, '\n')           // Converte \n para quebras de linha reais
-        .replace(/\\t/g, '\t')           // Converte \t para tabs reais
-        .replace(/\\"/g, '"')            // Converte \" para aspas duplas
-        .replace(/\\'/g, "'")            // Converte \' para aspas simples
-        .replace(/\\\\/g, '\\')          // Converte \\ para \
-        .replace(/\\r/g, '\r')           // Converte \r para retorno de carro
-        .trim();
-
-      // Se o código ainda não tem quebras de linha adequadas, tenta formatar
-      if (!cleanCode.includes('\n') && cleanCode.length > 100) {
-        // Tenta adicionar quebras de linha em pontos lógicos
-        cleanCode = cleanCode
-          .replace(/;/g, ';\n')          // Adiciona quebra após ponto e vírgula
-          .replace(/\{/g, '{\n')         // Adiciona quebra após {
-          .replace(/\}/g, '\n}')         // Adiciona quebra antes de }
-          .replace(/\)\s*\{/g, ') {\n')  // Adiciona quebra após ) {
-          .replace(/,\s*/g, ',\n')       // Adiciona quebra após vírgulas
-          .replace(/\n\s*\n/g, '\n')     // Remove linhas vazias duplicadas
-          .trim();
-      }
-
-      // Aplica indentação básica para melhorar a legibilidade
-      cleanCode = this.formatCode(cleanCode);
+      let cleanCode = this.cleanAndFormatCode(result.testCode);
 
       // Gera o caminho do arquivo de teste baseado no arquivo original
       const fullTestPath = this.generateTestFilePath(result.filePath);
@@ -745,6 +671,30 @@ export class AppComponent implements OnInit, OnDestroy {
       this.isCreatingTest.set(false);
       this.errorMessage.set('Erro ao criar arquivo de teste');
     }
+  }
+
+  private cleanAndFormatCode(code: string): string {
+    let processed = (code || '')
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t')
+      .replace(/\\"/g, '"')
+      .replace(/\\'/g, "'")
+      .replace(/\\\\/g, '\\')
+      .replace(/\\r/g, '\r')
+      .trim();
+
+    if (!processed.includes('\n') && processed.length > 100) {
+      processed = processed
+        .replace(/;/g, ';\n')
+        .replace(/\{/g, '{\n')
+        .replace(/\}/g, '\n}')
+        .replace(/\)\s*\{/g, ') {\n')
+        .replace(/,\s*/g, ',\n')
+        .replace(/\n\s*\n/g, '\n')
+        .trim();
+    }
+
+    return this.formatCode(processed);
   }
 
   private generateTestFilePath(originalPath: string): string {

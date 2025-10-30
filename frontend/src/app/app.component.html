@@ -43,7 +43,6 @@
     <mat-card class="step-card">
       <mat-card-header>
         <mat-card-title>
-          <span class="step-number">1</span>
           <mat-icon>folder</mat-icon>
           Escanear Diretório
         </mat-card-title>
@@ -89,7 +88,6 @@
           <div class="success-content">
             <mat-icon color="primary">check_circle</mat-icon>
             <span>{{ scannedComponents().length }} componentes encontrados!</span>
-            <span class="auto-advance-hint">Prosseguindo para a próxima etapa...</span>
           </div>
         </div>
       </mat-card-content>
@@ -101,7 +99,6 @@
     <mat-expansion-panel *ngIf="scannedComponents().length > 0">
       <mat-expansion-panel-header>
         <mat-panel-title>
-          <span class="step-number">2</span>
           <mat-icon>description</mat-icon>
           Selecionar Componentes ({{ scannedComponents().length }} encontrados)
         </mat-panel-title>
@@ -208,7 +205,6 @@
     <mat-card class="step-card" *ngIf="hasSelectedFiles()">
       <mat-card-header>
         <mat-card-title>
-          <span class="step-number">3</span>
           <mat-icon>science</mat-icon>
           Gerar Testes Unitários
         </mat-card-title>
@@ -242,7 +238,6 @@
           <div class="success-content">
             <mat-icon color="primary">check_circle</mat-icon>
             <span>{{ successCount() }} teste(s) gerado(s) com sucesso!</span>
-            <span class="auto-advance-hint">Prosseguindo para a próxima etapa...</span>
           </div>
         </div>
       </mat-card-content>
@@ -255,7 +250,6 @@
     <mat-expansion-panel *ngIf="testResults().length > 0">
       <mat-expansion-panel-header>
         <mat-panel-title>
-          <span class="step-number">4</span>
           <mat-icon>assessment</mat-icon>
           Resultados dos Testes ({{ testResults().length }})
         </mat-panel-title>
@@ -364,7 +358,6 @@
     <mat-expansion-panel *ngIf="hasCreatedTests()">
       <mat-expansion-panel-header>
         <mat-panel-title>
-          <span class="step-number">5</span>
           <mat-icon>play_arrow</mat-icon>
           Executar Todos os Testes
         </mat-panel-title>

@@ -1,43 +1,34 @@
-# Auto Unit Test — Angular + Node
+# 🧪 Auto Unit Test — Angular + Node
 
-Geração automática de testes unitários para projetos Angular, com backend Node/Express e integração com IA.
+Geração automática de testes unitários para projetos Angular, com backend Node/Express, integração com IA (OpenAI/StackSpot) e acompanhamento em tempo real via Socket.IO.
 
-## Visão geral
+## 📦 Monorepo
 
-Este repositório contém:
+- `backend` (Node/Express + TypeScript): escaneia componentes Angular, gera testes (Jest) e expõe APIs + websockets.
+- `frontend` (Angular 20 + Signals + Angular Material): UI para orquestrar e visualizar o fluxo.
+- `test-angular`: projeto Angular de exemplo para teste do scanner.
 
-- `backend` (Node/Express + TypeScript): APIs para escanear componentes Angular, conversar com o agente de geração e produzir testes (Jest). Inclui sockets para streaming e progresso.
-- `frontend` (Angular): UI para acompanhar a geração de testes em tempo real.
-- `test-angular`: mini projeto Angular de exemplo usado nos testes do scanner.
-
-> Importante: nenhuma chave secreta é commitada. Configure `.env` (exemplo abaixo).
-
-## Requisitos
+## ✅ Requisitos
 
 - Node.js 18+
 - npm 9+
-- Angular CLI (opcional)
 
-## Como começar
+## 🚀 Quickstart
 
-### 1) Instalação
+1) Instalação
 
 ```bash
-# Backend
-cd backend
-npm install
-
-# Frontend (opcional)
-cd ../frontend
-npm install
+cd backend && npm install
+cd ../frontend && npm install
 ```
 
-### 2) Variáveis de ambiente
+2) Configuração
 
-Crie `backend/.env` a partir de `backend/env.example`:
+- Preferencial: configure pela própria UI (ícone de configurações no topo). As mudanças são aplicadas automaticamente e salvas em `backend/config.json`.
+- Alternativa: crie `backend/.env` a partir de `backend/env.example`.
 
+Exemplo `.env`:
 ```env
-# backend/.env
 NODE_ENV=development
 PORT=3000
 CORS_ORIGIN=http://localhost:4200
@@ -45,7 +36,7 @@ OPENAI_API_KEY=YOUR_OPENAI_API_KEY
 LOG_LEVEL=info
 ```
 
-### 3) Executar
+3) Executar
 
 ```bash
 # Backend
@@ -53,64 +44,52 @@ cd backend
 npm run dev
 
 # Frontend (nova aba)
-cd frontend
+cd ../frontend
 npm start
 ```
 
-- Backend: http://localhost:3000
-- Frontend: http://localhost:4200
+- Backend: `http://localhost:3000`
+- Frontend: `http://localhost:4200`
 
-## Endpoints úteis
+## 🧭 Fluxo na UI
 
-- GET `/api/health`
-- POST `/api/chatgpt/generate-test`
-- POST `/api/tests/generate` (se aplicável)
+1. Escanear diretório do projeto Angular alvo
+2. Selecionar componentes/arquivos
+3. Gerar testes unitários com IA
+4. Visualizar resultados (código, explicação, dependências)
+5. Criar arquivo `.spec.ts` e/ou executar testes
 
-Para um guia completo, veja `INTEGRATION_COMPLETE.md`.
+## 🔌 APIs e Sockets
 
-## cURL (Postman)
+- REST:
+  - `GET /api/health`
+  - `POST /api/chatgpt/generate-test`
+- Socket.IO (principais eventos):
+  - `scan-directory`, `scan-progress`, `scan-completed`, `scan-error`
+  - `generate-tests`, `test-generation-progress`, `test-generated`, `test-generation-completed`
+  - `get-file-content`
+  - `execute-test`, `all-tests-output`
 
-1) Token (StackSpot):
+Detalhes adicionais em `INTEGRATION_COMPLETE.md` e `CONFIG_SETUP.md`.
 
-```bash
-curl --location --request POST 'https://idm.stackspot.com/stackspot-freemium/oidc/oauth/token' \
-  --header 'Content-Type: application/x-www-form-urlencoded' \
-  --header 'User-Agent: DelsucTest/1.0' \
-  --data-urlencode 'grant_type=client_credentials' \
-  --data-urlencode 'client_id=SEU_CLIENT_ID' \
-  --data-urlencode 'client_secret=SEU_CLIENT_KEY'
-```
+## 🧰 Scripts
 
-2) Chat (SSE):
+Backend:
+- `npm run dev` – desenvolvimento
+- `npm run build` – compila para `dist/`
+- `npm start` – executa build
 
-```bash
-curl --location 'https://genai-inference-app.stackspot.com/v1/agent/01K8SGYPB02EWM9V4CWSEYWAWN/chat' \
-  --header 'Content-Type: application/json' \
-  --header 'User-Agent: DelsucTest/1.0' \
-  --header 'Authorization: Bearer {{jwt}}' \
-  --data '{
-    "streaming": true,
-    "user_prompt": "",
-    "stackspot_knowledge": false,
-    "return_ks_in_response": true
-  }'
-```
+Frontend:
+- `npm start` – desenvolvimento
+- `npm run build` – produção para `dist/`
 
-## Scripts (backend)
-
-- `npm run dev`: desenvolvimento
-- `npm run build`: compila para `dist/`
-- `npm start`: roda build
-
-## Roadmap
+## 🗺️ Roadmap (curto prazo)
 
 - Suporte a Vitest/Jasmine
-- Templates configuráveis
-- Relatórios de cobertura e gaps
-- CI (GitHub Actions)
+- Templates configuráveis de test cases
+- Relatório de cobertura e gaps
+- Integração CI (GitHub Actions)
 
-## Licença
+## 📄 Licença
 
 MIT
-
-
