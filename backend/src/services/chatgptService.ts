@@ -25,17 +25,13 @@ export class ChatGPTService {
     this.temperature = 0.7;
     this.maxTokens = 2000;
 
-    console.log(`[AI] Provider selecionado: ${this.provider}`);
-    if (this.provider === 'stackspot') {
-      console.log(`[AI] STACKSPOT_COMPLETIONS_URL: ${env.STACKSPOT_COMPLETIONS_URL || '(não definido)'}`);
-      console.log(`[AI] STACKSPOT_TOKEN_URL: ${env.STACKSPOT_TOKEN_URL || `(montado via realm: https://idm.stackspot.com/${env.STACKSPOT_REALM || 'stackspot-freemium'}/oidc/oauth/token)`}`);
-      this.aiProvider = new StackspotProvider();
-    } else {
+    this.aiProvider = this.provider === 'stackspot' ? new StackspotProvider() : (() => {
+      // OpenAI provider requires API key
       if (!apiKey) {
         throw new Error('OPENAI_API_KEY não encontrada nas variáveis de ambiente');
       }
-      this.aiProvider = new OpenAIProvider(apiKey);
-    }
+      return new OpenAIProvider(apiKey);
+    })();
   }
 
   /**
@@ -206,7 +202,7 @@ Tipo de teste: ${testType}`;
 
       // Salva o conteúdo original para debug
       const originalContent = content;
-      console.log('📥 Conteúdo original da resposta:', originalContent.substring(0, 500));
+      // debug: conteúdo original suprimido em produção
 
       // Tenta extrair JSON da resposta (pode estar dentro de markdown)
       let jsonContent = content;
@@ -215,18 +211,18 @@ Tipo de teste: ${testType}`;
       const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
         jsonContent = jsonMatch[1].trim();
-        console.log('✅ JSON extraído de markdown');
+        // json extraído de markdown
       } else {
         // Se não tem markdown, tenta encontrar o JSON na resposta
         const jsonStart = content.indexOf('{');
         const jsonEnd = content.lastIndexOf('}');
         if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
           jsonContent = content.substring(jsonStart, jsonEnd + 1);
-          console.log('✅ JSON extraído diretamente da resposta');
+          // json extraído diretamente da resposta
         }
       }
 
-      console.log('📄 JSON para parse:', jsonContent.substring(0, 200));
+      // preview do json para parse suprimido
 
       // Tenta fazer o parse do JSON
       const parsedResponse = JSON.parse(jsonContent);
@@ -272,7 +268,7 @@ Tipo de teste: ${testType}`;
         testCode = this.fixUnclosedBlocks(testCode);
       }
 
-      console.log('✅ Parse bem-sucedido');
+      // parse bem-sucedido
 
       return {
         testCode: testCode,
@@ -282,8 +278,7 @@ Tipo de teste: ${testType}`;
         setupInstructions: normalizedResponse.setupInstructions || ''
       };
     } catch (error) {
-      console.error('❌ Erro ao fazer parse da resposta:', error);
-      console.error('📄 Conteúdo completo da resposta:', response.choices[0]?.message?.content);
+      console.error('Erro ao fazer parse da resposta:', error);
       
       // Tenta extrair informações úteis do erro
       let errorMessage = 'Erro desconhecido';
@@ -453,7 +448,7 @@ INSTRUÇÕES:
         throw new Error('Resposta vazia do ChatGPT');
       }
 
-      console.log('📥 Conteúdo original (fix):', content.substring(0, 500));
+      // debug suprimido
 
       // Tenta extrair JSON da resposta (pode estar dentro de markdown)
       let jsonContent = content;
@@ -462,18 +457,18 @@ INSTRUÇÕES:
       const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
         jsonContent = jsonMatch[1].trim();
-        console.log('✅ JSON extraído de markdown (fix)');
+        
       } else {
         // Se não tem markdown, tenta encontrar o JSON na resposta
         const jsonStart = content.indexOf('{');
         const jsonEnd = content.lastIndexOf('}');
         if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
           jsonContent = content.substring(jsonStart, jsonEnd + 1);
-          console.log('✅ JSON extraído diretamente da resposta (fix)');
+          
         }
       }
 
-      console.log('📄 JSON para parse (fix):', jsonContent.substring(0, 200));
+      
 
       const parsedResponse = JSON.parse(jsonContent);
 
@@ -483,7 +478,7 @@ INSTRUÇÕES:
 
       // Limpa o testCode removendo escape characters duplicados
       let testCode = parsedResponse.testCode;
-      console.log('📝 [DEBUG] TestCode antes do processamento (preview):', testCode.substring(0, 300));
+      
       
       if (typeof testCode === 'string') {
         // Remove escapes duplicados que podem ter sido gerados
@@ -494,16 +489,15 @@ INSTRUÇÕES:
           .replace(/\\"/g, '"')
           .replace(/\\\\/g, '\\');
         
-        console.log('📝 [DEBUG] TestCode após limpeza de escapes (preview):', testCode.substring(0, 300));
+        
         
         // Corrige blocos não fechados
         testCode = this.fixUnclosedBlocks(testCode);
         
-        console.log('📝 [DEBUG] TestCode após fixUnclosedBlocks (preview):', testCode.substring(0, 300));
-        console.log('📝 [DEBUG] TestCode final (últimos 100 caracteres):', testCode.substring(testCode.length - 100));
+        
       }
 
-      console.log('✅ Parse bem-sucedido (fix)');
+      
 
       return {
         testCode: testCode,
@@ -513,8 +507,7 @@ INSTRUÇÕES:
         setupInstructions: parsedResponse.setupInstructions || ''
       };
     } catch (error) {
-      console.error('❌ Erro ao fazer parse da resposta de correção:', error);
-      console.error('📄 Conteúdo da resposta:', response.choices[0]?.message?.content);
+      console.error('Erro ao fazer parse da resposta de correção:', error);
       
       // Tenta extrair informações úteis do erro
       let errorMessage = 'Erro desconhecido';
@@ -563,7 +556,7 @@ INSTRUÇÕES:
         // Se falta o ); final
         if (closingParens === 0) {
           fixedCode += ');';
-          console.log('🔧 [FIX] Adicionado ); final');
+          
         }
       }
     }
@@ -575,12 +568,12 @@ INSTRUÇÕES:
     if (finalOpenBraces > finalCloseBraces) {
       const missingBraces = finalOpenBraces - finalCloseBraces;
       fixedCode += '\n' + '}'.repeat(missingBraces);
-      console.log(`🔧 [FIX] Adicionadas ${missingBraces} chaves de fechamento`);
+      
       
       // Adiciona o ); final se for necessário
       if (!fixedCode.endsWith(');')) {
         fixedCode += ');';
-        console.log('🔧 [FIX] Adicionado ); final após correção de chaves');
+        
       }
     }
     

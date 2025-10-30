@@ -29,7 +29,7 @@ export class TestGenerationSocketService {
 
   private setupSocketHandlers() {
     this.io.on('connection', (socket) => {
-      console.log(`🔌 Cliente conectado: ${socket.id}`);
+    
 
       // Escanear diretório
       socket.on('scan-directory', async (data: { directoryPath: string; options?: any }) => {
@@ -73,14 +73,14 @@ export class TestGenerationSocketService {
       });
 
       socket.on('disconnect', () => {
-        console.log(`🔌 Cliente desconectado: ${socket.id}`);
+      
       });
     });
   }
 
   private async handleScanDirectory(socket: any, data: { directoryPath: string; options?: any }) {
     try {
-      console.log(`📁 Iniciando escaneamento: ${data.directoryPath}`);
+      
       
       socket.emit('scan-started', { directoryPath: data.directoryPath });
 
@@ -91,10 +91,10 @@ export class TestGenerationSocketService {
       }
 
       socket.emit('scan-completed', { result });
-      console.log(`✅ Escaneamento concluído: ${result.components.length} componentes encontrados`);
+      
 
     } catch (error) {
-      console.error('❌ Erro no escaneamento:', error);
+      console.error('Erro no escaneamento:', error);
       socket.emit('scan-error', { 
         error: error instanceof Error ? error.message : 'Erro desconhecido' 
       });
@@ -103,7 +103,7 @@ export class TestGenerationSocketService {
 
   private async handleGetFileContent(socket: any, data: { filePath: string }) {
     try {
-      console.log(`📄 Obtendo conteúdo do arquivo: ${data.filePath}`);
+      
       
       const content = readFileSync(data.filePath, 'utf-8');
       
@@ -113,7 +113,7 @@ export class TestGenerationSocketService {
       });
 
     } catch (error) {
-      console.error('❌ Erro ao ler arquivo:', error);
+      console.error('Erro ao ler arquivo:', error);
       socket.emit('file-content-error', { 
         filePath: data.filePath,
         error: error instanceof Error ? error.message : 'Erro ao ler arquivo'
@@ -123,7 +123,7 @@ export class TestGenerationSocketService {
 
   private async handleGenerateTests(socket: any, data: { files: string[]; options?: any }) {
     try {
-      console.log(`🧪 Iniciando geração de testes para ${data.files.length} arquivos`);
+      
       
       socket.emit('test-generation-started', { files: data.files });
 
@@ -179,7 +179,7 @@ export class TestGenerationSocketService {
           // Enviar resultado individual
           socket.emit('test-generated', result);
           
-          console.log(`✅ Teste gerado para: ${filePath}`);
+          
 
         } catch (error) {
           const result: TestGenerationResult = {
@@ -195,7 +195,7 @@ export class TestGenerationSocketService {
           results.push(result);
           
           socket.emit('test-generated', result);
-          console.error(`❌ Erro ao gerar teste para ${filePath}:`, error);
+          console.error(`Erro ao gerar teste para ${filePath}:`, error);
         }
 
         // Pequena pausa para não sobrecarregar a API
@@ -204,10 +204,10 @@ export class TestGenerationSocketService {
 
       // Enviar resultado final
       socket.emit('test-generation-completed', { results });
-      console.log(`🎉 Geração de testes concluída: ${results.filter(r => r.success).length}/${totalFiles} sucessos`);
+      
 
     } catch (error) {
-      console.error('❌ Erro na geração de testes:', error);
+      console.error('Erro na geração de testes:', error);
       socket.emit('test-generation-error', { 
         error: error instanceof Error ? error.message : 'Erro desconhecido' 
       });
@@ -248,7 +248,7 @@ export class TestGenerationSocketService {
     try {
       const { filePath, content } = data;
       
-      console.log(`📝 Criando arquivo de teste: ${filePath}`);
+      
       
       // Importar fs e path
       const fs = await import('fs');
@@ -263,7 +263,7 @@ export class TestGenerationSocketService {
       // Escrever o arquivo
       fs.writeFileSync(filePath, content, 'utf8');
       
-      console.log(`✅ Arquivo de teste criado com sucesso: ${filePath}`);
+      
       
       // Enviar confirmação para o cliente
       socket.emit('test-file-created', {
@@ -272,7 +272,7 @@ export class TestGenerationSocketService {
       });
       
     } catch (error) {
-      console.error(`❌ Erro ao criar arquivo de teste:`, error);
+      console.error(`Erro ao criar arquivo de teste:`, error);
       
       socket.emit('test-file-error', {
         filePath: data.filePath,
@@ -285,36 +285,35 @@ export class TestGenerationSocketService {
     try {
       const { filePath, testCode, originalFilePath } = data;
       
-      console.log(`🧪 Iniciando execução do teste: ${filePath}`);
-      console.log(`📝 Código do teste recebido: ${testCode.substring(0, 100)}...`);
+      
       
       // Enviar evento de início
       socket.emit('test-execution-started', { filePath, originalFilePath });
-      console.log(`📡 Evento 'test-execution-started' enviado para: ${filePath}`);
+      
       
       // Determinar o diretório do projeto (assumindo que é o diretório pai do arquivo)
       const projectPath = filePath.split('src')[0].slice(0, -1); // Remove a barra final
-      console.log(`📁 Diretório do projeto detectado: ${projectPath}`);
+      
       
       // Verificar se o arquivo de teste existe, se não, criar primeiro
       const fs = await import('fs');
       const path = await import('path');
       
       if (!fs.existsSync(filePath)) {
-        console.log(`📝 Arquivo de teste não existe, criando: ${filePath}`);
+        
         const dir = path.dirname(filePath);
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true });
         }
         fs.writeFileSync(filePath, testCode, 'utf8');
-        console.log(`✅ Arquivo de teste criado: ${filePath}`);
+        
       }
       
       // Configurar listeners para saída em tempo real
       const outputHandler = (d: { testFilePath: string; output: string }) => {
-        console.log(`📤 Output recebido para ${d.testFilePath}: ${d.output.substring(0, 50)}...`);
+        
         if (d.testFilePath === filePath) {
-          console.log(`📡 Enviando 'test-execution-output' para socket`);
+          
           socket.emit('test-execution-output', {
             filePath: d.testFilePath,
             originalFilePath,
@@ -324,9 +323,9 @@ export class TestGenerationSocketService {
       };
 
       const completedHandler = (d: { testFilePath: string; success: boolean; output: string; exitCode?: number }) => {
-        console.log(`✅ Completed recebido para ${d.testFilePath}: success=${d.success}`);
+        
         if (d.testFilePath === filePath) {
-          console.log(`📡 Enviando 'test-execution-completed' para socket`);
+          
           socket.emit('test-execution-completed', {
             filePath: d.testFilePath,
             originalFilePath,
@@ -337,9 +336,9 @@ export class TestGenerationSocketService {
       };
 
       const errorHandler = (d: { testFilePath: string; error: string }) => {
-        console.log(`❌ Error recebido para ${d.testFilePath}: ${d.error}`);
+        
         if (d.testFilePath === filePath) {
-          console.log(`📡 Enviando 'test-execution-error' para socket`);
+          
           socket.emit('test-execution-error', {
             filePath: d.testFilePath,
             originalFilePath,
@@ -353,14 +352,14 @@ export class TestGenerationSocketService {
       this.jestExecutionService.on('error', errorHandler);
 
       // Executar o teste
-      console.log(`🚀 Iniciando execução do Jest...`);
+      
       const result = await this.jestExecutionService.executeTest({
         projectPath,
         testFilePath: filePath,
         timeout: 30000
       });
 
-      console.log(`✅ Execução do teste concluída: ${filePath} - ${result.success ? 'Sucesso' : 'Erro'}`);
+      
       
       // Limpar listeners
       this.jestExecutionService.off('output', outputHandler);
@@ -368,7 +367,7 @@ export class TestGenerationSocketService {
       this.jestExecutionService.off('error', errorHandler);
       
     } catch (error) {
-      console.error(`❌ Erro ao executar teste:`, error);
+      console.error(`Erro ao executar teste:`, error);
       
       socket.emit('test-execution-error', {
         filePath: data.filePath,
@@ -380,7 +379,7 @@ export class TestGenerationSocketService {
 
   // Handler para executar todos os testes
   private async handleExecuteAllTests(socket: any, data: { projectPath: string }) {
-    console.log('🚀 Frontend: execute-all-tests chamado', data.projectPath);
+    
     
     try {
       const { projectPath } = data;
@@ -394,9 +393,9 @@ export class TestGenerationSocketService {
 
       // Configurar handlers para eventos do Jest
       const outputHandler = (d: { testFilePath: string; output: string }) => {
-        console.log(`📡 Output recebido para ${d.testFilePath}: ${d.output.substring(0, 100)}...`);
+        
         if (d.testFilePath === 'all-tests') {
-          console.log(`📡 Enviando 'all-tests-output' para socket`);
+          
           socket.emit('all-tests-output', {
             output: d.output
           });
@@ -404,9 +403,9 @@ export class TestGenerationSocketService {
       };
 
       const completedHandler = (d: { testFilePath: string; success: boolean; output: string; exitCode?: number }) => {
-        console.log(`✅ Completed recebido para ${d.testFilePath}: ${d.success ? 'sucesso' : 'erro'}`);
+        
         if (d.testFilePath === 'all-tests') {
-          console.log(`📡 Enviando 'all-tests-completed' para socket`);
+          
           socket.emit('all-tests-completed', {
             success: d.success,
             output: d.output,
@@ -416,9 +415,9 @@ export class TestGenerationSocketService {
       };
 
       const errorHandler = (d: { testFilePath: string; error: string }) => {
-        console.log(`❌ Error recebido para ${d.testFilePath}: ${d.error}`);
+        
         if (d.testFilePath === 'all-tests') {
-          console.log(`📡 Enviando 'all-tests-execution-error' para socket`);
+          
           socket.emit('all-tests-execution-error', {
             error: d.error
           });
@@ -430,13 +429,13 @@ export class TestGenerationSocketService {
       this.jestExecutionService.on('error', errorHandler);
 
       // Executar todos os testes
-      console.log(`🚀 Iniciando execução de todos os testes...`);
+      
       const result = await this.jestExecutionService.executeAllTests({
         projectPath,
         timeout: 60000
       });
 
-      console.log(`✅ Execução de todos os testes concluída: ${result.success ? 'sucesso' : 'erro'}`);
+      
 
       // Limpar handlers
       this.jestExecutionService.off('output', outputHandler);
@@ -444,7 +443,7 @@ export class TestGenerationSocketService {
       this.jestExecutionService.off('error', errorHandler);
       
     } catch (error) {
-      console.error(`❌ Erro ao executar todos os testes:`, error);
+      console.error(`Erro ao executar todos os testes:`, error);
       
       socket.emit('all-tests-execution-error', {
         error: error instanceof Error ? error.message : 'Erro desconhecido na execução'
@@ -460,26 +459,20 @@ export class TestGenerationSocketService {
     componentName: string; 
     filePath: string; 
   }) {
-    console.log('🔧 [BACKEND] fix-test-error chamado');
-    console.log('🔧 [BACKEND] FilePath:', data.filePath);
-    console.log('🔧 [BACKEND] ComponentName:', data.componentName);
-    console.log('🔧 [BACKEND] ComponentCode length:', data.componentCode?.length || 0);
-    console.log('🔧 [BACKEND] TestCode length:', data.testCode?.length || 0);
-    console.log('🔧 [BACKEND] ErrorMessage length:', data.errorMessage?.length || 0);
-    console.log('🔧 [BACKEND] ErrorMessage preview:', data.errorMessage?.substring(0, 200));
+    
     
     try {
       const { componentCode, testCode, errorMessage, componentName, filePath } = data;
       
       if (!componentCode || !testCode || !errorMessage) {
-        console.error('❌ [BACKEND] Dados insuficientes para correção');
+        console.error('Dados insuficientes para correção');
         socket.emit('test-fix-error', {
           error: 'Dados insuficientes para correção do teste'
         });
         return;
       }
 
-      console.log(`🔧 [BACKEND] Corrigindo teste para: ${componentName} (${filePath})`);
+      
 
       // Notificar que a correção começou
       socket.emit('test-fix-started', {
@@ -487,7 +480,7 @@ export class TestGenerationSocketService {
         componentName
       });
 
-      console.log('🤖 [BACKEND] Chamando ChatGPT para corrigir...');
+      
 
       // Usar o ChatGPT para corrigir o erro
       const chatGPTService = this.getChatGPTService();
@@ -499,9 +492,7 @@ export class TestGenerationSocketService {
         filePath
       });
 
-      console.log(`✅ [BACKEND] Teste corrigido pelo ChatGPT para: ${componentName}`);
-      console.log(`✅ [BACKEND] Fixed test code length:`, fixedTest.testCode.length);
-      console.log(`✅ [BACKEND] Fixed test explanation:`, fixedTest.explanation?.substring(0, 100));
+      
 
       // Enviar o teste corrigido
       socket.emit('test-fixed', {
@@ -516,11 +507,11 @@ export class TestGenerationSocketService {
         }
       });
 
-      console.log('✅ [BACKEND] Evento test-fixed enviado para o frontend');
+      
 
     } catch (error) {
-      console.error(`❌ [BACKEND] Erro ao corrigir teste:`, error);
-      console.error(`❌ [BACKEND] Stack trace:`, error instanceof Error ? error.stack : 'N/A');
+      console.error(`Erro ao corrigir teste:`, error);
+      console.error(`Stack trace:`, error instanceof Error ? error.stack : 'N/A');
       
       socket.emit('test-fix-error', {
         error: error instanceof Error ? error.message : 'Erro desconhecido na correção'

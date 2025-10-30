@@ -72,11 +72,6 @@ new TestGenerationSocketService(io);
 // Iniciar servidor
 const PORT = config.PORT || 3000;
 
-server.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  console.log(`📊 Ambiente: ${config.NODE_ENV}`);
-  console.log(`🌐 URL: http://localhost:${PORT}`);
-  console.log(`🔌 Socket.IO habilitado`);
-});
+server.listen(PORT, () => {});
 
 export { app, io };
