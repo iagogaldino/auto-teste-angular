@@ -14,6 +14,7 @@ import {
   ScanError
 } from '../types/angularComponent';
 import { logger } from './logger';
+import { FileTreeNode } from '../types/angularComponent';
 
 export class AngularComponentScanner {
   private readonly defaultOptions: Required<ScanOptions> = {
@@ -21,21 +22,8 @@ export class AngularComponentScanner {
     includeSpecs: false,
     recursive: true,
     fileExtensions: ['.ts'],
-    excludePatterns: [
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/build/**',
-      '**/*.spec.ts',
-      '**/*.test.ts',
-      '**/e2e/**',
-      // Config files - excluding them from scanning
-      '**/*.json',  // Excludes all JSON files including tsconfig
-      '**/.prettierrc*',
-      '**/.eslintrc*',
-      // Out directories
-      '**/out-tsc/**',
-      '.angular/**'
-    ]
+    // Exclui apenas node_modules por padrão para performance
+    excludePatterns: ['**/node_modules/**']
   };
 
   /**
@@ -105,7 +93,8 @@ export class AngularComponentScanner {
         totalFiles: files.length,
         scannedFiles,
         errors,
-        scanTime
+        scanTime,
+        fileTree: this.buildFileTree(files.map(f => relative(directoryPath, f).replace(/\\/g, '/')))
       };
       logger.info('scan_done', { directoryPath, components: components.length, files: files.length, ms: scanTime, errors: errors.length });
       return res;
@@ -132,13 +121,8 @@ export class AngularComponentScanner {
       options.recursive ? `**/*${ext}` : `*${ext}`
     );
 
-    const excludePatterns = options.excludePatterns;
-    if (!options.includeTests) {
-      excludePatterns.push('**/*.spec.ts', '**/*.test.ts');
-    }
-    if (!options.includeSpecs) {
-      excludePatterns.push('**/*.spec.ts');
-    }
+    // Mantemos os padrões fornecidos como estão (por padrão nenhum filtro)
+    const excludePatterns = [...options.excludePatterns];
 
     const allFiles: string[] = [];
     
@@ -588,5 +572,48 @@ export class AngularComponentScanner {
     }
     
     return [...new Set(dependencies)];
+  }
+
+  /**
+   * Constrói uma árvore de diretórios/arquivos a partir de uma lista de caminhos relativos
+   */
+  private buildFileTree(relativePaths: string[]): FileTreeNode[] {
+    type Dir = { __files: FileTreeNode[]; __dirs: Record<string, Dir> };
+    const root: Dir = { __files: [], __dirs: {} };
+
+    for (const rel of relativePaths) {
+      const parts = rel.split('/').filter(Boolean);
+      let cursor = root;
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        const isLast = i === parts.length - 1;
+        if (isLast) {
+          cursor.__files.push({ name: part, path: rel, isFile: true });
+        } else {
+          if (!cursor.__dirs[part]) cursor.__dirs[part] = { __files: [], __dirs: {} };
+          cursor = cursor.__dirs[part];
+        }
+      }
+    }
+
+    const toTree = (dir: Dir, base: string[] = []): FileTreeNode[] => {
+      const dirEntries = Object.keys(dir.__dirs).sort((a, b) => a.localeCompare(b));
+      const dirNodes: FileTreeNode[] = dirEntries.map(name => {
+        const full = [...base, name];
+        const children = [
+          ...toTree(dir.__dirs[name], full),
+          ...dir.__dirs[name].__files.sort((a, b) => a.name.localeCompare(b.name))
+        ];
+        return { name, path: full.join('/'), isFile: false, children };
+      });
+      return dirNodes;
+    };
+
+    const tree = [
+      ...toTree(root),
+      ...root.__files.sort((a, b) => a.name.localeCompare(b.name))
+    ];
+
+    return tree.sort((a, b) => (a.isFile !== b.isFile ? (a.isFile ? 1 : -1) : a.name.localeCompare(b.name)));
   }
 }

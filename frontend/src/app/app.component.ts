@@ -23,6 +23,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTreeModule } from '@angular/material/tree';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSidenavModule } from '@angular/material/sidenav';
 import { NestedTreeControl } from '@angular/cdk/tree';
 import { MatTreeNestedDataSource } from '@angular/material/tree';
 import { SplashComponent } from './components/splash/splash.component';
@@ -31,7 +32,7 @@ import { SplashComponent } from './components/splash/splash.component';
 declare const Prism: any;
 
 // Tipo da árvore para representar a estrutura do projeto
-export interface TreeNode { name: string; path: string; children?: TreeNode[]; isFile: boolean; component?: AngularComponent; displayName?: string; result?: TestGenerationResult }
+export interface TreeNode { name: string; path: string; children?: TreeNode[]; isFile: boolean; isSpec?: boolean; component?: AngularComponent; displayName?: string; result?: TestGenerationResult }
 
 @Component({
   selector: 'app-root',
@@ -56,6 +57,7 @@ export interface TreeNode { name: string; path: string; children?: TreeNode[]; i
     MatAutocompleteModule,
     MatTreeModule,
     MatProgressSpinnerModule,
+    MatSidenavModule,
     SplashComponent
   ],
   templateUrl: './app.component.html',
@@ -80,6 +82,8 @@ export class AppComponent implements OnInit, OnDestroy {
   // Dados escaneados
   scannedComponents = signal<AngularComponent[]>([]);
   selectedFiles = signal<string[]>([]);
+  // Modo de seleção múltipla (exibe/oculta checkboxes)
+  selectionMode = signal<boolean>(false);
   
   // Estrutura de árvore derivada dos componentes escaneados
   // Controle e fonte de dados da árvore
@@ -126,10 +130,20 @@ export class AppComponent implements OnInit, OnDestroy {
   // Exibição inline de arquivos na lista
   inlineFileContents = signal<{ [path: string]: string }>({});
   expandedFiles = signal<{ [path: string]: boolean }>({});
+  // Execução de specs a partir da árvore
+  specExecutions = signal<{ [fullSpecPath: string]: { status: 'running' | 'success' | 'error'; output: string; startTime?: Date; endTime?: Date } }>({});
+  // Preview fixo e larguras das colunas
+  previewPath = signal<string | null>(null);
+  filesWidthPct = signal<number>(25);
+  codeWidthPct = signal<number>(50);
+  logWidthPct = signal<number>(25);
+  private resizeState: { handle: 'files-code' | 'code-log' | null; startX: number; startFiles: number; startCode: number; startLog: number } = { handle: null, startX: 0, startFiles: 25, startCode: 50, startLog: 25 };
   
   // Execução de todos os testes
   allTestsOutput = signal<string>('');
   allTestsExecution = signal<{ status: 'running' | 'success' | 'error'; output: string; startTime?: Date } | null>(null);
+  // Destaque para novos specs criados (até interação)
+  newSpecHighlights = signal<{ [relativePath: string]: boolean }>({});
   
   // Modal de detalhes do teste
   selectedTestResult = signal<TestGenerationResult | null>(null);
@@ -202,6 +216,11 @@ export class AppComponent implements OnInit, OnDestroy {
   @ViewChild(MatStepper) stepper?: MatStepper;
   @ViewChild('allTestsOutputContainer') allTestsOutputContainer?: ElementRef<HTMLDivElement>;
 
+  showAllTestsModal = signal<boolean>(false);
+
+  // Forçar re-render do bloco de código quando novo conteúdo chega
+  codeRenderKey = signal<number>(0);
+
   constructor(
     private socketService: SocketService,
     private configService: ConfigService
@@ -248,8 +267,9 @@ export class AppComponent implements OnInit, OnDestroy {
       this.isScanning.set(false);
       this.scanProgress.set(null);
       this.scannedComponents.set(data.result.components || []);
-      // Constrói a árvore a partir dos caminhos dos arquivos dos componentes
-      this.treeDataSource.data = this.buildTreeFromComponents(this.scannedComponents());
+      // Usa a árvore enviada pelo backend se existir; senão, constrói localmente
+      const backendTree = (data.result && data.result.fileTree) ? data.result.fileTree : null;
+      this.treeDataSource.data = backendTree || this.buildTreeFromComponents(this.scannedComponents());
       this.treeControl.dataNodes = this.treeDataSource.data;
       
       // Mensagem mais informativa
@@ -287,9 +307,30 @@ export class AppComponent implements OnInit, OnDestroy {
     // Conteúdo do arquivo
     this.socketService.onFileContent().subscribe(data => {
       // Não usamos mais modal; apenas cache para exibição inline
-      this.inlineFileContents.update(map => ({ ...map, [data.filePath]: data.content }));
+      const normalize = (p: string) => (p || '').replace(/\\/g, '/');
+      const filePathNorm = normalize(data.filePath);
+      // Deriva a chave relativa a partir do diretório atual, quando possível
+      const base = normalize(this.directoryPath() || '');
+      let relKey = filePathNorm;
+      if (base && (filePathNorm.startsWith(base + '/') || filePathNorm === base)) {
+        relKey = filePathNorm.slice(base.length).replace(/^\//, '');
+      }
+      this.inlineFileContents.update(map => ({
+        ...map,
+        [data.filePath]: data.content,
+        [filePathNorm]: data.content,
+        [relKey]: data.content
+      }));
+
+      // Verifica se o conteúdo corresponde ao arquivo atualmente em preview
+      const previewRel = normalize(this.previewPath() || '');
+      const isCurrent = relKey.toLowerCase() === previewRel.toLowerCase();
+      if (isCurrent) {
+        this.codeRenderKey.update(v => v + 1);
+        setTimeout(() => { try { Prism && Prism.highlightAll(); } catch {} }, 0);
+      }
+
       this.statusMessage.set(`Conteúdo carregado: ${data.filePath}`);
-      setTimeout(() => { try { Prism && Prism.highlightAll(); } catch {} }, 0);
     });
 
     this.socketService.onFileContentError().subscribe(data => {
@@ -346,13 +387,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.isGeneratingTests.set(false);
       this.testProgress.set(null);
       this.statusMessage.set(`Geração concluída: ${data.results.filter(r => r.success).length}/${data.results.length} sucessos`);
-      
-      // Auto-avança para o próximo step após a geração de testes concluir
-      if (data.results && data.results.length > 0 && this.stepper) {
-        setTimeout(() => {
-          this.stepper?.next();
-        }, 500); // Pequeno delay para melhorar a UX
-      }
+
     });
 
     this.socketService.onTestGenerationError().subscribe(data => {
@@ -366,6 +401,35 @@ export class AppComponent implements OnInit, OnDestroy {
       this.isCreatingTest.set(false);
       if (data.success) {
         this.statusMessage.set(`Arquivo de teste criado: ${data.filePath}`);
+        // Converte caminho absoluto para relativo ao diretório escaneado
+        const base = (this.directoryPath() || '').replace(/\\/g, '/');
+        const abs = (data.filePath || '').replace(/\\/g, '/');
+        let rel = abs;
+        if (base && (abs === base || abs.startsWith(base + '/'))) {
+          rel = abs.slice(base.length).replace(/^\//, '');
+        }
+        // Se ainda não está na lista, adiciona como componente genérico
+        const exists = this.scannedComponents().some(c => c.filePath.replace(/\\/g, '/') === rel);
+        if (!exists) {
+          const newComp: AngularComponent = {
+            name: (rel.split('/').pop() || rel).replace('.ts', ''),
+            filePath: rel,
+            selector: '',
+            isStandalone: true,
+            imports: [],
+            methods: [],
+            properties: [],
+            signals: [],
+            computedSignals: [],
+            interfaces: [],
+            dependencies: []
+          } as any;
+          this.scannedComponents.update(list => [...list, newComp]);
+          this.treeDataSource.data = this.buildTreeFromComponents(this.scannedComponents());
+          this.treeControl.dataNodes = this.treeDataSource.data;
+        }
+        // Marca como novo (azul) até interação
+        this.newSpecHighlights.update(m => ({ ...m, [rel]: true }));
         // Limpa a mensagem após 5 segundos
         setTimeout(() => {
           this.statusMessage.set('');
@@ -405,6 +469,16 @@ export class AppComponent implements OnInit, OnDestroy {
         }
         return updatedResults;
       });
+      // Atualiza execuções de specs (quando originalFilePath é o próprio spec)
+      this.specExecutions.update(map => {
+        if (map[data.originalFilePath]) {
+          return {
+            ...map,
+            [data.originalFilePath]: { status: 'running', output: 'Iniciando execução...\n', startTime: new Date() }
+          };
+        }
+        return map;
+      });
     });
 
     this.socketService.onTestExecutionOutput().subscribe(data => {
@@ -425,6 +499,14 @@ export class AppComponent implements OnInit, OnDestroy {
           }
         }
         return updatedResults;
+      });
+      // Append ao log de specs
+      this.specExecutions.update(map => {
+        const cur = map[data.originalFilePath];
+        if (cur) {
+          return { ...map, [data.originalFilePath]: { ...cur, status: 'running', output: (cur.output || '') + data.output } };
+        }
+        return map;
       });
     });
 
@@ -453,6 +535,14 @@ export class AppComponent implements OnInit, OnDestroy {
         }
         return updatedResults;
       });
+      // Finaliza execução do spec
+      this.specExecutions.update(map => {
+        const cur = map[data.originalFilePath];
+        if (cur) {
+          return { ...map, [data.originalFilePath]: { ...cur, status: data.status, output: (cur.output || '') + (data.output || ''), endTime: new Date() } };
+        }
+        return map;
+      });
     });
 
     this.socketService.onTestExecutionError().subscribe(data => {
@@ -479,6 +569,14 @@ export class AppComponent implements OnInit, OnDestroy {
           }
         }
         return updatedResults;
+      });
+      // Erro em execução de spec
+      this.specExecutions.update(map => {
+        const cur = map[data.originalFilePath];
+        if (cur) {
+          return { ...map, [data.originalFilePath]: { ...cur, status: 'error', output: (cur.output || '') + `\nErro: ${data.error}`, endTime: new Date() } };
+        }
+        return map;
       });
     });
 
@@ -638,10 +736,20 @@ export class AppComponent implements OnInit, OnDestroy {
     this.scannedComponents.set([]);
     this.selectedFiles.set([]);
     this.testResults.set([]);
-    this.socketService.scanDirectory(this.directoryPath());
+    // Incluir arquivos .spec.ts na estrutura (visíveis), mas não selecionáveis
+    // includeTests:true evita que o scanner backend exclua .spec.ts por padrão
+    this.socketService.scanDirectory(this.directoryPath(), { includeSpecs: true, includeTests: true });
+  }
+
+  isSpecPath(filePath: string): boolean {
+    return /\.spec\.ts$/i.test(filePath);
   }
 
   toggleFileSelection(filePath: string): void {
+    // Impede seleção de arquivos .spec.ts
+    if (this.isSpecPath(filePath)) {
+      return;
+    }
     this.selectedFiles.update(files => {
       if (files.includes(filePath)) {
         return files.filter(f => f !== filePath);
@@ -652,7 +760,10 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   selectAllFiles(): void {
-    const allFiles = this.scannedComponents().map(c => c.filePath);
+    // Seleciona apenas arquivos .ts que não são .spec.ts
+    const allFiles = this.scannedComponents()
+      .map(c => c.filePath)
+      .filter(p => !this.isSpecPath(p));
     this.selectedFiles.set(allFiles);
   }
 
@@ -670,19 +781,199 @@ export class AppComponent implements OnInit, OnDestroy {
 
   hasChild = (_: number, node: TreeNode) => !!node.children && node.children.length > 0;
 
+  toggleSelectionMode(): void {
+    const next = !this.selectionMode();
+    this.selectionMode.set(next);
+    if (!next) {
+      // Ao sair do modo de seleção, não alteramos seleção atual, apenas escondemos os checkboxes
+    }
+  }
+
   private buildTreeFromComponents(components: AngularComponent[]): TreeNode[] {
-    // Lista plana de arquivos usando o tree como lista
-    const nodes: TreeNode[] = components.map(comp => {
-      const normalized = comp.filePath.replace(/\\/g, '/');
-      const fileName = normalized.split('/').pop() || normalized;
-      return {
-        name: fileName,
-        path: normalized,
-        isFile: true,
-        component: comp
-      } as TreeNode;
-    }).sort((a, b) => a.name.localeCompare(b.name));
-    return nodes;
+    // Constrói uma árvore de diretórios/arquivos a partir dos caminhos dos componentes
+    // Oculta arquivos *.test.ts (mantém .ts e .spec.ts)
+    const files = components
+      .filter(comp => !/\.test\.ts$/i.test(comp.filePath))
+      .map(comp => ({
+        path: comp.filePath.replace(/\\/g, '/'),
+        comp
+      }));
+
+    type DirMap = { [name: string]: { __files: TreeNode[]; __dirs: DirMap } };
+    const root: DirMap = {};
+
+    for (const { path, comp } of files) {
+      const parts = path.split('/').filter(Boolean);
+      let cursor = root;
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        const isLast = i === parts.length - 1;
+        if (isLast) {
+          const fileNode: TreeNode = {
+            name: part,
+            path,
+            isFile: true,
+            isSpec: /\.spec\.ts$/i.test(part),
+            component: comp
+          };
+          const dirKey = '__files';
+          // cria bucket se ainda não existir
+          if (!cursor['__files']) {
+            (cursor as any)['__files'] = [] as TreeNode[];
+          }
+          (cursor as any)[dirKey].push(fileNode);
+        } else {
+          if (!cursor[part]) {
+            cursor[part] = { __files: [], __dirs: {} };
+          }
+          cursor = cursor[part].__dirs;
+        }
+      }
+    }
+
+    const toTree = (map: DirMap, basePath: string[] = []): TreeNode[] => {
+      const dirNames = Object.keys(map).filter(k => !k.startsWith('__')).sort((a, b) => a.localeCompare(b));
+      const dirNodes: TreeNode[] = dirNames.map(dirName => {
+        const sub = map[dirName];
+        const fullPath = [...basePath, dirName].join('/');
+        const children = [
+          ...toTree(sub.__dirs, [...basePath, dirName]),
+          ...sub.__files.sort((a, b) => a.name.localeCompare(b.name))
+        ];
+        return {
+          name: dirName,
+          path: fullPath,
+          isFile: false,
+          children
+        } as TreeNode;
+      });
+      // No nível atual, não existem arquivos soltos além dos que pertencem a diretórios
+      return dirNodes;
+    };
+
+    // Arquivos na raiz (sem diretórios)
+    const rootFiles: TreeNode[] = (root as any)['__files']
+      ? ((root as any)['__files'] as TreeNode[]).sort((a, b) => a.name.localeCompare(b.name))
+      : [];
+
+    const tree = [
+      ...toTree(root),
+      ...rootFiles
+    ];
+
+    // Pastas primeiro, depois arquivos, ambos ordenados
+    return tree.sort((a, b) => {
+      if (a.isFile !== b.isFile) return a.isFile ? 1 : -1;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  // Verifica se o spec é novo (para destacar em azul)
+  isNewSpec(path: string): boolean {
+    const key = path.replace(/\\/g, '/');
+    return !!this.newSpecHighlights()[key];
+  }
+
+  // ===== Preview e inline helpers (agora o inline reflete o preview selecionado) =====
+  isFileExpanded(path: string): boolean {
+    return this.previewPath() === path;
+  }
+
+  toggleInlineFile(node: { path: string; component?: AngularComponent }): void {
+    const path = node.path;
+    const normalize = (p: string) => (p || '').replace(/\\/g, '/');
+    const normalizedRel = normalize(path);
+    const fullPath = `${this.directoryPath()}/${normalizedRel}`;
+    this.previewPath.set(normalizedRel);
+
+    // Re-render imediatamente para exibir o conteúdo em cache (se existir)
+    this.codeRenderKey.update(v => v + 1);
+
+    // Solicita o conteúdo real; o preview será atualizado quando o evento chegar
+    this.socketService.getFileContent(fullPath);
+
+    if (this.isSpecPath(path)) {
+      this.newSpecHighlights.update(m => {
+        const copy: any = { ...m };
+        const rel = normalizedRel;
+        if (copy[rel]) delete copy[rel];
+        return copy;
+      });
+    }
+  }
+
+  executeSpecNode(node: { path: string }): void {
+    const path = node.path;
+    if (!this.isSpecPath(path)) return;
+    const fullSpecPath = `${this.directoryPath()}/${path}`;
+    this.previewPath.set(path);
+    if (!this.inlineFileContents()[fullSpecPath]) {
+      this.socketService.getFileContent(fullSpecPath);
+    }
+    setTimeout(() => { try { Prism && Prism.highlightAll(); } catch {} }, 0);
+    // Inicializa estado e dispara execução
+    this.specExecutions.update(map => ({
+      ...map,
+      [fullSpecPath]: { status: 'running', output: 'Iniciando execução...\n', startTime: new Date() }
+    }));
+    this.socketService.executeTest(fullSpecPath, '', fullSpecPath);
+  }
+
+  executeCurrentSpec(): void {
+    const current = this.previewPath();
+    if (!current || !this.isSpecPath(current)) return;
+    const fullSpecPath = `${this.directoryPath()}/${current}`;
+    // Garante que temos conteúdo mais recente
+    this.socketService.getFileContent(fullSpecPath);
+    // Inicializa/atualiza estado de execução
+    this.specExecutions.update(map => ({
+      ...map,
+      [fullSpecPath]: { status: 'running', output: 'Iniciando execução...\n', startTime: new Date() }
+    }));
+    this.socketService.executeTest(fullSpecPath, '', fullSpecPath);
+  }
+
+  // ===== Resize handlers =====
+  startResize(handle: 'files-code' | 'code-log', event: MouseEvent): void {
+    event.preventDefault();
+    this.resizeState = {
+      handle,
+      startX: event.clientX,
+      startFiles: this.filesWidthPct(),
+      startCode: this.codeWidthPct(),
+      startLog: this.logWidthPct()
+    };
+    const move = (e: MouseEvent) => this.onResizeMove(e);
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      this.resizeState.handle = null;
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  }
+
+  private onResizeMove(event: MouseEvent): void {
+    if (!this.resizeState.handle) return;
+    const deltaPx = event.clientX - this.resizeState.startX;
+    const viewportW = window.innerWidth || document.documentElement.clientWidth || 1200;
+    const deltaPct = (deltaPx / viewportW) * 100;
+    const min = 10;
+    if (this.resizeState.handle === 'files-code') {
+      let newFiles = this.resizeState.startFiles + deltaPct;
+      let newCode = this.resizeState.startCode - deltaPct;
+      if (newFiles < min) { newCode -= (min - newFiles); newFiles = min; }
+      if (newCode < min) { newFiles -= (min - newCode); newCode = min; }
+      this.filesWidthPct.set(Math.max(min, newFiles));
+      this.codeWidthPct.set(Math.max(min, newCode));
+    } else {
+      let newCode = this.resizeState.startCode + deltaPct;
+      let newLog = this.resizeState.startLog - deltaPct;
+      if (newCode < min) { newLog -= (min - newCode); newCode = min; }
+      if (newLog < min) { newCode -= (min - newLog); newLog = min; }
+      this.codeWidthPct.set(Math.max(min, newCode));
+      this.logWidthPct.set(Math.max(min, newLog));
+    }
   }
 
   private getCommonPrefixSegments(paths: string[]): string[] {
@@ -744,28 +1035,14 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   // Inline code viewing helpers
-  isFileExpanded(path: string): boolean {
-    return !!this.expandedFiles()[path];
-  }
-
   getInlineContent(path: string): string {
-    // path recebido pode ser relativo; no cache usamos caminho completo
-    const fullPath = path.includes(this.directoryPath()) ? path : `${this.directoryPath()}/${path}`;
-    return this.inlineFileContents()[fullPath] || '';
-  }
-
-  toggleInlineFile(node: { path: string; component?: AngularComponent }): void {
-    const path = node.path;
-    const fullPath = `${this.directoryPath()}/${path}`;
-    const expanded = this.expandedFiles()[path];
-    this.expandedFiles.update(m => ({ ...m, [path]: !expanded }));
-    if (!expanded) {
-      // Expanding: load content if not cached
-      if (!this.inlineFileContents()[fullPath]) {
-        this.socketService.getFileContent(fullPath);
-      }
-      setTimeout(() => { try { Prism && Prism.highlightAll(); } catch {} }, 0);
-    }
+    // path recebido pode ser relativo; no cache usamos também a chave relativa
+    const normalize = (p: string) => (p || '').replace(/\\/g, '/');
+    const rel = normalize(path);
+    const full = normalize(path.includes(this.directoryPath()) ? path : `${this.directoryPath()}/${path}`);
+    const cache = this.inlineFileContents();
+    // Prioriza chave relativa; depois absoluta normalizada; depois absoluta original
+    return cache[rel] ?? cache[full] ?? cache[path] ?? '';
   }
 
   generateTests(): void {
@@ -783,6 +1060,17 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   // ===== Diretórios Recentes (localStorage) =====
+  private tryAutoOpenLastDirectory(directories: string[] | null | undefined): void {
+    if (!directories || directories.length === 0) return;
+    const last = (directories[0] || '').trim();
+    if (!last) return;
+    // Evita disparos duplicados se já houver diretório definido
+    if (this.directoryPath() && this.directoryPath().trim() === last) return;
+    this.directoryPath.set(last);
+    // Inicia escaneamento automático
+    this.scanDirectory();
+  }
+
   private async loadRecentDirectories(): Promise<void> {
     try {
       const res = await fetch('/api/directories');
@@ -790,6 +1078,8 @@ export class AppComponent implements OnInit, OnDestroy {
         const data = await res.json();
         if (Array.isArray(data?.directories)) {
           this.recentDirectories.set(data.directories);
+          // Tenta abrir automaticamente o último projeto
+          this.tryAutoOpenLastDirectory(data.directories);
           return;
         }
       }
@@ -800,6 +1090,8 @@ export class AppComponent implements OnInit, OnDestroy {
       if (raw) {
         const list = JSON.parse(raw);
         if (Array.isArray(list)) this.recentDirectories.set(list);
+        // Autoabre também no fallback
+        this.tryAutoOpenLastDirectory(list);
       }
     } catch {}
   }
@@ -1078,23 +1370,37 @@ export class AppComponent implements OnInit, OnDestroy {
     this.socketService.executeAllTests(this.directoryPath());
   }
 
-  // Método para gerar teste individual para um componente específico
+  // Método para gerar teste individual para um componente específico (seleção rápida na árvore)
   generateTestForComponent(component: AngularComponent): void {
-    if (this.isCreatingTest()) {
-      return;
-    }
+    if (this.isCreatingTest()) return;
+    if (!component || !component.filePath) return;
 
-    // Define apenas este componente como selecionado
-    this.selectedFiles.set([component.filePath]);
-    
-    // Inicia a geração de teste
+    // Feedback de UI
     this.isCreatingTest.set(true);
-    this.statusMessage.set(`Gerando teste para ${component.name}...`);
+    this.statusMessage.set(`Gerando teste para ${component.name || this.getFileName(component.filePath)}...`);
     this.errorMessage.set('');
-    
-    // Chama o serviço para gerar teste
-    this.socketService.generateTests([component.filePath]);
+
+    // Envia caminho completo do arquivo do componente (backend espera full path)
+    const fullPath = `${this.directoryPath()}/${component.filePath}`;
+    this.socketService.generateTests([fullPath]);
   }
+
+  private isTsNonSpec(path: string | null): boolean {
+    if (!path) return false;
+    return /\.ts$/i.test(path) && !/\.spec\.ts$/i.test(path);
+  }
+
+  generateCurrentTest(): void {
+    const current = this.previewPath();
+    if (!this.isTsNonSpec(current)) return;
+    const fullPath = `${this.directoryPath()}/${current}`;
+    this.isCreatingTest.set(true);
+    this.statusMessage.set(`Gerando teste para ${this.getFileName(fullPath)}...`);
+    this.errorMessage.set('');
+    this.socketService.generateTests([fullPath]);
+  }
+
+  
 
   // Métodos para status de execução de todos os testes
   getAllTestsExecutionStatusClass(status: string): string {
@@ -1538,5 +1844,36 @@ export class AppComponent implements OnInit, OnDestroy {
         this.errorMessage.set('Erro ao aplicar configuração');
       }
     });
+  }
+
+  openProjectFromMenu(): void {
+    // Tenta obter caminho via prompt simples
+    const current = this.directoryPath();
+    const input = window.prompt('Informe o caminho do projeto (pasta raiz):', current || '');
+    if (input && input.trim()) {
+      this.directoryPath.set(input.trim());
+      this.scanDirectory();
+    }
+  }
+
+  runAllTestsFromMenu(): void {
+    if (!this.directoryPath().trim()) {
+      this.errorMessage.set('Selecione/abra um projeto antes de executar os testes');
+      return;
+    }
+    // Abre modal e inicia execução
+    this.showAllTestsModal.set(true);
+    this.executeAllTests();
+  }
+
+  closeAllTestsModal(): void {
+    this.showAllTestsModal.set(false);
+  }
+
+  isPathSelected(path: string): boolean {
+    const normalize = (p: string) => (p || '').replace(/\\/g, '/');
+    const current = normalize(this.previewPath() || '');
+    const target = normalize(path);
+    return current === target;
   }
 }

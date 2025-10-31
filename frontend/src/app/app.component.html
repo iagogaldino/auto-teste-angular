@@ -18,357 +18,129 @@
         </mat-chip>
       </mat-chip-listbox>
     </mat-toolbar-row>
-  </mat-toolbar>
-
-  <!-- Status Messages -->
-  <div class="status-section">
-    <mat-card *ngIf="errorMessage()" class="error-card">
-      <mat-card-content>
-        <div class="error-content">
-          <mat-icon color="warn">error</mat-icon>
-          <span>{{ errorMessage() }}</span>
-          <button mat-icon-button (click)="clearError()" class="clear-error">
-            <mat-icon>close</mat-icon>
+    <mat-toolbar-row class="top-menu-row">
+      <div class="top-menu">
+        <button mat-raised-button color="primary" (click)="openProjectFromMenu()">
+          <mat-icon>folder_open</mat-icon>
+          Abrir Projeto
+        </button>
+        <button mat-raised-button color="accent" (click)="runAllTestsFromMenu()" [disabled]="!directoryPath().trim() || isExecutingAllTests()">
+          <mat-icon>{{ isExecutingAllTests() ? 'hourglass_empty' : 'play_arrow' }}</mat-icon>
+          Executar Testes
+        </button>
+        <span class="spacer"></span>
+        <button mat-raised-button (click)="toggleSelectionMode()" [color]="selectionMode() ? 'warn' : 'primary'" [disabled]="scannedComponents().length === 0">
+          <mat-icon>{{ selectionMode() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+          {{ selectionMode() ? 'Sair Seleção' : 'Selecionar Múltiplos' }}
+        </button>
+        <mat-chip color="primary" class="selected-chip">
+          <mat-icon>check_circle</mat-icon>
+          {{ selectedFiles().length }} selecionados
+        </mat-chip>
+        <div class="nav-actions">
+          <button mat-raised-button (click)="selectAllFiles()" color="primary">
+            <mat-icon>select_all</mat-icon>
+            Todos
+          </button>
+          <button mat-raised-button (click)="clearSelection()" color="accent">
+            <mat-icon>clear_all</mat-icon>
+            Limpar
+          </button>
+          <button 
+            mat-raised-button 
+            color="primary" 
+            (click)="generateTests()" 
+            [disabled]="selectedFiles().length === 0 || isGeneratingTests()"
+            title="Gerar testes para os selecionados"
+          >
+            <mat-icon>{{ isGeneratingTests() ? 'refresh' : 'rocket_launch' }}</mat-icon>
+            Gerar Selecionados
           </button>
         </div>
-      </mat-card-content>
-    </mat-card>
-  </div>
+      </div>
+    </mat-toolbar-row>
+  </mat-toolbar>
 
   <!-- Main Content -->
   <div class="main-content">
-    <mat-horizontal-stepper [linear]="true" class="flow-stepper" [disableRipple]="true" #stepper="matStepper">
-
     
-    <mat-step label="1. Escanear" [completed]="!!scanProgress() || scannedComponents().length > 0">
-    <!-- Step 1: Directory Scan -->
-    <mat-card class="step-card">
-      <mat-card-header>
-        <mat-card-title>
-          <mat-icon>folder</mat-icon>
-          Escanear Diretório
-        </mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        <div class="input-group">
-          <mat-form-field appearance="fill" class="directory-input">
-            <mat-label>Caminho do diretório</mat-label>
-            <input 
-              matInput
-              [(ngModel)]="directoryPath" 
-              placeholder="ex: C:\\Users\\...\\src"
-              [disabled]="isScanning()"
-              (keydown.enter)="scanDirectory()"
-              [matAutocomplete]="dirAuto"
-            >
-            <button 
-              mat-icon-button 
-              matSuffix
-              color="primary"
-              (click)="scanDirectory()" 
-              [disabled]="isScanning() || !directoryPath().trim()"
-              aria-label="Escanear diretório"
-            >
-              <mat-icon [class.spinning]="isScanning()">{{ isScanning() ? 'refresh' : 'search' }}</mat-icon>
-            </button>
-            <mat-autocomplete #dirAuto="matAutocomplete">
-              <mat-option *ngFor="let dir of recentDirectories()" (onSelectionChange)="selectRecentDirectory(dir)" [value]="dir">
-                <div class="recent-item">
-                  <span class="recent-path">{{ dir }}</span>
-                  <button mat-icon-button color="warn" class="remove-recent" (click)="removeRecentDirectory(dir, $event)" title="Remover">
-                    <mat-icon>delete</mat-icon>
-                  </button>
-                </div>
-              </mat-option>
-              <mat-option *ngIf="recentDirectories().length === 0" disabled>Nenhum diretório recente</mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
-        </div>
-        
-        <!-- Scan Progress -->
-        <div class="progress-section" *ngIf="scanProgress()">
-          <mat-progress-bar 
-            mode="determinate" 
-            [value]="scanProgress()!.percentage"
-            color="primary"
-          ></mat-progress-bar>
-          <div class="progress-text">
-            {{ scanProgress()!.current }}/{{ scanProgress()!.total }} - {{ scanProgress()!.currentFile }}
-          </div>
-        </div>
-        
-        <!-- Scan Success Message -->
-        <div class="scan-success" *ngIf="scanCompleted()">
-          <div class="success-content">
-            <mat-icon color="primary">check_circle</mat-icon>
-            <span>{{ scannedComponents().length }} componentes encontrados!</span>
-          </div>
-        </div>
-      </mat-card-content>
-    </mat-card>
-    </mat-step>
-
-    <mat-step label="2. Selecionar" [completed]="selectedFiles().length > 0">
-    <!-- Step 2: Select Components -->
-    <mat-expansion-panel *ngIf="scannedComponents().length > 0">
-      <mat-expansion-panel-header>
-        <mat-panel-title>
-          <mat-icon>description</mat-icon>
-          Selecionar Componentes ({{ scannedComponents().length }} encontrados)
-        </mat-panel-title>
-        <mat-panel-description>
-          <div class="step-actions">
-            <button mat-raised-button (click)="selectAllFiles()" color="primary">
-              <mat-icon>select_all</mat-icon>
-              Todos
-            </button>
-            <button mat-raised-button (click)="clearSelection()" color="accent">
-              <mat-icon>clear_all</mat-icon>
-              Limpar
-            </button>
-            <button 
-              mat-raised-button 
-              color="primary" 
-              (click)="stepper.next()" 
-              [disabled]="selectedFiles().length === 0"
-              title="Ir para 3. Gerar"
-            >
-              <mat-icon>arrow_forward</mat-icon>
-              Ir para Gerar
-            </button>
-          </div>
-        </mat-panel-description>
-      </mat-expansion-panel-header>
-
-        <div class="selection-info">
-          <mat-chip color="primary">
-            <mat-icon>check_circle</mat-icon>
-            {{ selectedFiles().length }} selecionados
-          </mat-chip>
-        </div>
-        
+    <!-- Layout com Angular Material Sidenav -->
+    <mat-sidenav-container class="app-sidenav-container" *ngIf="scannedComponents().length > 0">
+      <mat-sidenav class="app-sidenav" mode="side" opened>
         <mat-card class="tree-card">
-          <mat-card-header>
-            <mat-card-title>
-              <mat-icon>account_tree</mat-icon>
-              Estrutura do Projeto
-            </mat-card-title>
-          </mat-card-header>
           <mat-card-content>
             <mat-tree [dataSource]="treeDataSource" [treeControl]="treeControl" class="project-tree">
-              <!-- Arquivo (.ts) como lista plana -->
-              <mat-tree-node *matTreeNodeDef="let node" class="tree-file-node">
+              <!-- Nó de diretório (pasta) -->
+              <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild" class="tree-folder-node">
+                <div class="tree-folder-content" matTreeNodePadding [matTreeNodePaddingIndent]="8">
+                  <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
+                    <mat-icon>
+                      {{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}
+                    </mat-icon>
+                  </button>
+                  <span class="folder-name clickable" (click)="treeControl.toggle(node)">{{ node.name }}</span>
+                </div>
+                <div [class.tree-children]="true" *ngIf="treeControl.isExpanded(node)">
+                  <ng-container matTreeNodeOutlet></ng-container>
+                </div>
+              </mat-nested-tree-node>
+
+              <!-- Nó de arquivo -->
+              <mat-tree-node *matTreeNodeDef="let node" class="tree-file-node" matTreeNodePadding [matTreeNodePaddingIndent]="1">
                 <button mat-icon-button disabled></button>
-                <mat-checkbox 
+                <mat-checkbox *ngIf="selectionMode()"
                   [checked]="selectedFiles().includes(node.path)"
                   (change)="toggleFileSelection(node.path)"
-                  [disabled]="!node.isFile"
-                  title="Selecionar arquivo"
+                  [disabled]="!node.isFile || isSpecPath(node.path)"
+                  title="{{ isSpecPath(node.path) ? 'Arquivos .spec.ts não são selecionáveis' : 'Selecionar arquivo' }}"
                 ></mat-checkbox>
-                <mat-icon>description</mat-icon>
-                <span class="file-name clickable" (click)="toggleInlineFile(node)">
+                <mat-icon>{{ isSpecPath(node.path) ? 'assignment_turned_in' : 'description' }}</mat-icon>
+                <span class="file-name clickable" (click)="toggleInlineFile(node)" [ngClass]="{ 'is-new-spec': isSpecPath(node.path) && isNewSpec(node.path), 'selected': isPathSelected(node.path) }">
                   {{ node.name }}
                 </span>
-                <span class="tree-actions" *ngIf="node.isFile && node.component">
-                  <button 
-                    mat-icon-button
-                    (click)="generateTestForComponent(node.component!)"
-                    [disabled]="isCreatingTest()"
-                    title="Gerar teste"
-                    color="accent"
-                  >
-                    <mat-icon>{{ isCreatingTest() ? 'hourglass_empty' : 'auto_awesome' }}</mat-icon>
-                  </button>
-                </span>
-                
-                <!-- Inline code viewer -->
-                <div class="inline-code" *ngIf="isFileExpanded(node.path)">
-                <pre><code class="language-typescript">{{ getInlineContent(node.path) }}</code></pre>
-                </div>
               </mat-tree-node>
             </mat-tree>
           </mat-card-content>
         </mat-card>
-    </mat-expansion-panel>
-    </mat-step>
+      </mat-sidenav>
 
-    <mat-step label="3. Gerar" [completed]="!!testProgress() || testResults().length > 0">
-    <!-- Step 3: Generate Tests -->
-    <mat-card class="step-card" *ngIf="hasSelectedFiles()">
-      <mat-card-header class="centered-header">
-        <button 
-          mat-raised-button
-          color="primary"
-          (click)="generateTests()" 
-          [disabled]="!canGenerateTests()"
-          class="generate-tests-btn"
-        >
-          <mat-icon>{{ isGeneratingTests() ? 'refresh' : 'rocket_launch' }}</mat-icon>
-          {{ isGeneratingTests() ? 'Gerando...' : 'Gerar Testes' }}
-        </button>
-      </mat-card-header>
-
-      <mat-card-content class="generation-wrapper">
-        <!-- Animated placeholder while waiting first progress event -->
-        <div class="progress-section" *ngIf="isGeneratingTests() && !testProgress()">
-          <div class="loading-placeholder">
-            <div class="loading-bar"></div>
-          </div>
-          <div class="loading-status">
-            <mat-icon class="pulse">hourglass_empty</mat-icon>
-            Preparando geração...
-          </div>
-        </div>
-
-        <!-- Test Generation Progress -->
-        <div class="progress-section" *ngIf="testProgress()">
-          <mat-progress-bar 
-            mode="determinate" 
-            [value]="testProgress()!.percentage"
-            color="primary"
-          ></mat-progress-bar>
-          <div class="progress-text">
-            {{ testProgress()!.current }}/{{ testProgress()!.total }} - {{ testProgress()!.currentFile }}
-          </div>
-        </div>
-        
-        <!-- Overlay shown during entire generation -->
-        <div class="generation-overlay" *ngIf="isGeneratingTests()">
-          <div class="overlay-content">
-            <div class="dots"><span></span><span></span><span></span></div>
-            <div class="overlay-text">Gerando testes...</div>
-          </div>
-        </div>
-
-        <!-- Test Generation Success Message -->
-        <div class="scan-success" *ngIf="testsGenerated()">
-          <div class="success-content">
-            <mat-icon color="primary">check_circle</mat-icon>
-            <span>{{ successCount() }} teste(s) gerado(s) com sucesso!</span>
-          </div>
-        </div>
-      </mat-card-content>
-    </mat-card>
-    <div class="no-data" *ngIf="!hasSelectedFiles()">Selecione ao menos um arquivo para gerar testes.</div>
-    </mat-step>
-
-    <mat-step label="4. Resultados" [completed]="testResults().length > 0">
-    <!-- Step 4: Test Results -->
-    <mat-expansion-panel *ngIf="testResults().length > 0">
-      <mat-expansion-panel-header>
-        <mat-panel-title>
-          <mat-icon>assessment</mat-icon>
-          Resultados dos Testes ({{ testResults().length }})
-        </mat-panel-title>
-      </mat-expansion-panel-header>
-
-        <mat-tree [dataSource]="resultsTreeNodes()" [treeControl]="treeControl" class="project-tree">
-          <mat-tree-node *matTreeNodeDef="let node" class="tree-file-node">
-            <mat-icon>description</mat-icon>
-            <span class="file-name clickable" (click)="toggleResultInline(node)">{{ node.name }}</span>
-            <span class="tree-actions">
-              <button 
-                mat-icon-button
-                (click)="copyTestCode(node.result!.testCode)"
-                title="Copiar código"
-                *ngIf="node.result?.success"
-                color="primary"
-              >
-                <mat-icon>content_copy</mat-icon>
-              </button>
-              <button 
-                mat-icon-button
-                (click)="createTestFile(node.result!)"
-                [disabled]="isCreatingTest()"
-                title="Criar arquivo"
-                *ngIf="node.result?.success"
-                color="accent"
-              >
-                <mat-icon>{{ isCreatingTest() ? 'hourglass_empty' : 'save' }}</mat-icon>
-              </button>
-              <button 
-                mat-icon-button
-                (click)="fixTestError(node.result!)"
-                [disabled]="isFixingTest()"
-                title="Ajustar código com IA"
-                color="primary"
-              >
-                <mat-icon>build</mat-icon>
-              </button>
-              <button 
-                mat-icon-button
-                (click)="executeTest(node.result!)"
-                [disabled]="isExecutingTest() || !node.result?.success"
-                title="Executar teste"
-                *ngIf="node.result?.success"
-                color="primary"
-              >
-                <mat-icon>{{ isExecutingTest() ? 'hourglass_empty' : 'play_arrow' }}</mat-icon>
-              </button>
-              <button 
-                mat-icon-button
-                (click)="retryTest(node.result!)"
-                [disabled]="isGeneratingTests()"
-                title="Refazer teste"
-                *ngIf="!node.result?.success"
-                color="warn"
-              >
-                <mat-icon>{{ isGeneratingTests() ? 'hourglass_empty' : 'refresh' }}</mat-icon>
-              </button>
-            </span>
-            <div class="inline-code split" *ngIf="isResultExpanded(node.path)">
-              <div class="code-pane">
-                <pre><code class="language-typescript">{{ getResultInlineContent(node) }}</code></pre>
+      <mat-sidenav-content class="app-sidenav-content">
+        <div class="code-log-grid" [ngClass]="{ 'three-cols': isSpecPath(previewPath() || '') , 'two-cols': !isSpecPath(previewPath() || '') }"
+             [style.gridTemplateColumns]="isSpecPath(previewPath() || '') ? ('1fr 6px 1fr') : ('1fr')">
+          <div class="col code">
+            <div class="code-container" *ngIf="previewPath()" [attr.data-key]="previewPath() + ':' + codeRenderKey()">
+              <div class="code-actions-overlay">
+                <!-- Executar (somente para .spec.ts) -->
+                <button *ngIf="isSpecPath(previewPath() || '')"
+                        mat-icon-button color="primary" (click)="executeCurrentSpec()"
+                        [disabled]="isExecutingTest()" title="Executar teste">
+                  <mat-icon>{{ isExecutingTest() ? 'hourglass_empty' : 'play_arrow' }}</mat-icon>
+                </button>
+                <!-- Gerar teste (somente para .ts não spec) -->
+                <button *ngIf="!isSpecPath(previewPath() || '')"
+                        mat-icon-button color="accent" (click)="generateCurrentTest()"
+                        [disabled]="isCreatingTest()" title="Gerar teste">
+                  <mat-icon>auto_awesome</mat-icon>
+                </button>
               </div>
-              <div class="log-pane" *ngIf="node.result?.testExecution" [ngClass]="getExecutionStatusClass(node.result!.testExecution!.status)">
-                <pre class="output-content">{{ node.result!.testExecution!.output }}</pre>
-              </div>
+              <pre><code class="language-typescript" [attr.data-path]="previewPath()" [attr.data-version]="codeRenderKey()" [textContent]="getInlineContent(previewPath()!)"></code></pre>
             </div>
-          </mat-tree-node>
-        </mat-tree>
-    </mat-expansion-panel>
-    <div class="no-data" *ngIf="testResults().length === 0">Gere testes para visualizar os resultados.</div>
-    </mat-step>
-
-    <mat-step label="5. Executar" [completed]="allTestsExecution() && allTestsExecution()!.status !== 'running'">
-    <!-- Step 5: Execute All Tests -->
-    <mat-expansion-panel *ngIf="hasCreatedTests()">
-      <mat-expansion-panel-header class="centered-panel-header">
-        <mat-panel-title class="visually-hidden"></mat-panel-title>
-        <mat-panel-description>
-          <button 
-            mat-raised-button
-            color="accent"
-            (click)="executeAllTests()" 
-            [disabled]="isExecutingAllTests()"
-            class="execute-all-tests-btn"
-          >
-            <mat-icon>{{ isExecutingAllTests() ? 'hourglass_empty' : 'play_arrow' }}</mat-icon>
-            {{ isExecutingAllTests() ? 'Executando...' : 'Executar Todos' }}
-          </button>
-        </mat-panel-description>
-      </mat-expansion-panel-header>
-
-      <!-- All Tests Execution Progress -->
-      <div class="all-tests-execution" *ngIf="allTestsExecution()">
-        <div 
-          class="execution-output" 
-          [ngClass]="getAllTestsExecutionStatusClass(allTestsExecution()!.status)"
-          #allTestsOutputContainer
-        >
-          <pre class="output-content">{{ allTestsExecution()!.output }}</pre>
+          </div>
+          <div class="v-resizer" *ngIf="isSpecPath(previewPath() || '')" (mousedown)="startResize('code-log', $event)"></div>
+          <div class="col log" *ngIf="isSpecPath(previewPath() || '')">
+            <div class="execution-output" [ngClass]="getExecutionStatusClass(specExecutions()[directoryPath() + '/' + previewPath()]?.status || 'running')">
+              <pre class="output-content">{{ specExecutions()[directoryPath() + '/' + previewPath()]?.output }}</pre>
+            </div>
+          </div>
         </div>
-      </div>
-    </mat-expansion-panel>
-    <div class="no-data" *ngIf="!hasCreatedTests()">Gere ao menos um teste antes de executar todos.</div>
-    </mat-step>
+      </mat-sidenav-content>
+    </mat-sidenav-container>
 
-    </mat-horizontal-stepper>
   </div>
-
-  <!-- Modals -->
-
-  <!-- Test Details Modal -->
+ 
+   <!-- Modals -->
+ 
+   <!-- Test Details Modal -->
   <div class="test-details-modal" *ngIf="selectedTestResult()" (click)="closeTestDetails()">
     <div class="modal-content" (click)="$event.stopPropagation()">
       <div class="modal-header">
@@ -728,4 +500,28 @@
       <span>Desenvolvido por <strong>iago_galdino@hotmail.com</strong></span>
     </div>
   </footer>
+
+  <!-- All Tests Execution Modal -->
+  <div class="test-details-modal" *ngIf="showAllTestsModal()" (click)="closeAllTestsModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Execução de Todos os Testes</h3>
+        <button mat-icon-button (click)="closeAllTestsModal()" class="close-modal">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="all-tests-execution" *ngIf="allTestsExecution()">
+          <div 
+            class="execution-output" 
+            [ngClass]="getAllTestsExecutionStatusClass(allTestsExecution()!.status)"
+            #allTestsOutputContainer
+          >
+            <pre class="output-content">{{ allTestsExecution()!.output }}</pre>
+          </div>
+        </div>
+        <div class="no-data" *ngIf="!allTestsExecution()">Preparando execução...</div>
+      </div>
+    </div>
+  </div>
 </div>

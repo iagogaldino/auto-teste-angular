@@ -1,3 +1,26 @@
+/* Tree typography sizing for compact view */
+.project-tree {
+  .tree-file-node, .tree-folder-node {
+    .file-name,
+    .folder-name {
+      font-size: 11px;
+    }
+    mat-icon {
+      font-size: 11px;
+      width: 14px;
+      height: 14px;
+      line-height: 11px;
+    }
+    button.mat-icon-button {
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      line-height: 20px;
+      min-width: 20px;
+      min-height: 20px;
+    }
+  }
+}
 .status-chip-icon-only {
   .mdc-evolution-chip__text-label { display: none; }
 }
@@ -28,7 +51,7 @@
   --mat-sys-on-surface: #e5e7eb;
   --mat-sys-surface-variant: #15151d;
   --mat-sys-on-surface-variant: #a1a1aa;
-  --mat-sys-outline: #2a2a35;
+  --mat-sys-outline: #000000;
   --mat-sys-outline-variant: #1f1f2a;
   --mat-sys-shadow: #000000;
   --mat-sys-scrim: #000000;
@@ -42,6 +65,10 @@
 // Estilos globais
 .app-container {
   min-height: auto;
+  height: 100vh; /* ocupa a viewport inteira */
+  overflow: hidden; /* evita scroll no app principal */
+  display: flex;           /* layout em coluna para manter footer visível */
+  flex-direction: column;
   background: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
   font-family: 'Roboto', sans-serif;
@@ -68,6 +95,11 @@
   background: var(--mat-sys-surface) !important;
   color: var(--mat-sys-on-surface) !important;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  padding: 0 8px !important;
+  flex: 0 0 auto; /* garante altura fixa no layout em coluna */
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
 
 .flow-stepper {
@@ -110,7 +142,7 @@
 
 // Status Messages
 .status-section {
-  margin: 20px;
+  margin: 8px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -135,11 +167,14 @@
 
 // Main Content
 .main-content {
-  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
+  overflow: hidden; /* não rolar aqui; apenas dentro dos painéis */
+  flex: 1 1 auto;   /* ocupa o espaço entre header e footer */
 }
+
+.main-shell { gap: 10px; }
 
 // Step Cards
 .step-card {
@@ -171,7 +206,7 @@
 
 // Tree card styling
 .tree-card {
-  margin-top: 12px;
+  margin-top: 4px;
   background: var(--mat-sys-surface);
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 12px;
@@ -179,31 +214,100 @@
     padding-bottom: 0;
   }
   .mat-mdc-card-content {
-    padding-top: 8px;
+    padding-top: 4px;
   }
 }
 
+// Reduce interior paddings in cards
+.mat-mdc-card-header, .mat-mdc-card-content { padding-left: 8px; padding-right: 8px; }
+
+// Grid de layout (Arquivos | Código | Teste)
+.layout-grid {
+  display: grid;
+  grid-template-columns: 25% 50% 25%;
+  gap: 12px;
+  align-items: start;
+}
+
+.layout-grid.two-cols {
+  grid-template-columns: 25% 75%;
+}
+
+.layout-grid .col {
+  min-width: 0; // permite encolher dentro do grid
+}
+
+.layout-grid .code .code-container pre { overflow: auto; }
+
+.v-resizer {
+  width: 4px;
+  cursor: col-resize;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.v-resizer:hover { background: rgba(255,255,255,0.18); }
+
+// Melhorias na linha do arquivo
 .project-tree {
-  .mat-tree-node,
-  .mat-nested-tree-node {
-    min-height: 36px;
-  }
-
-  .tree-folder .folder-name {
-    font-weight: 600;
-    margin-left: 6px;
-  }
-
   .tree-file-node {
     display: flex;
-    align-items: flex-start;
-    flex-wrap: wrap; // permite quebrar linha para o bloco de código
-    gap: 8px;
-    .file-name { font-weight: 500; }
-    .file-name.clickable { cursor: pointer; text-decoration: underline; }
-    .file-path { opacity: 0.6; margin-left: 6px; font-size: 12px; }
-    .tree-actions { margin-left: auto; }
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+
+    // checkbox + icon ocupam largura fixa
+    button[mat-icon-button] { flex: 0 0 auto; }
+
+    .file-name {
+      flex: 1 1 auto; // ocupa o resto
+      min-width: 0;   // permite encolher
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap; // evita quebra em nomes grandes
+    }
+
+    .tree-actions { flex: 0 0 auto; }
   }
+}
+
+.project-tree .tree-file-node .file-name { font-weight: 400; }
+
+.project-tree .tree-file-node .file-name.selected {
+  background: rgba(255,255,255,0.10);
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+.project-tree .tree-file-node .file-name,
+.project-tree .tree-file-node .file-name.selected {
+  cursor: pointer;
+}
+
+// Log e código ocupam largura total disponível
+.execution-output { max-width: 100%; }
+
+// Responsividade: telas menores empilham colunas
+@media (max-width: 1280px) {
+  .layout-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto auto;
+  }
+  .v-resizer { display: none; }
+  .layout-grid .col.files { order: 1; }
+  .layout-grid .col.code  { order: 2; }
+  .layout-grid .col.log   { order: 3; }
+
+  // Aumenta altura útil do log em telas menores
+  .execution-output { max-height: 40vh; }
+  .sidebar { width: 100%; flex: 1 1 100%; top: 0; height: auto; }
+}
+
+@media (max-width: 768px) {
+  .selection-info { flex-direction: column; gap: 8px; }
+  .step-actions { flex-wrap: wrap; }
+  .layout-grid { gap: 8px; }
 }
 
 .inline-code {
@@ -229,6 +333,17 @@
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 6px;
   padding: 8px;
+}
+
+// Garante 50/50 mesmo com conteúdo longo
+.inline-code.split .code-pane,
+.inline-code.split .log-pane {
+  min-width: 0; // permite encolher dentro do grid
+}
+
+// Evita que o código force o grid a expandir
+.inline-code .code-pane pre {
+  overflow: auto;
 }
 
 .inline-code .log-pane.running {
@@ -761,11 +876,9 @@
 // Code Container
 .code-container {
   background: #1e1e1e;
-  border-radius: 8px;
   padding: 20px;
-  margin-top: 15px;
   overflow-x: auto;
-  border: 1px solid var(--mat-sys-outline);
+  position: relative;
 }
 
 .code-container pre {
@@ -1257,3 +1370,70 @@
 .save-error mat-icon {
   color: var(--mat-sys-error);
 }
+
+.top-menu-row {
+  background: var(--mat-sys-surface);
+  border-top: 1px solid var(--mat-sys-outline);
+  padding: 0 8px; /* compact */
+  flex: 0 0 auto;
+}
+
+.top-menu {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.top-menu button mat-icon { margin-right: 6px; }
+
+.app-sidenav-container {
+  height: 100%; // ocupa toda a área da main-content (que já respeita o footer)
+}
+
+.app-sidenav {
+  width: 360px;
+  background: var(--mat-sys-surface);
+  /* Scrollbar dark, quadrado e semi-transparente */
+  overflow: auto;
+}
+
+/* WebKit-based browsers */
+.app-sidenav::-webkit-scrollbar {
+  width: 10px;
+}
+.app-sidenav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.app-sidenav::-webkit-scrollbar-thumb {
+  background-color: rgba(255,255,255,0.12);
+  border-radius: 0; /* quadrado */
+}
+.app-sidenav::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255,255,255,0.22);
+}
+
+/* Firefox */
+.app-sidenav {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+
+.app-sidenav-content {
+  padding: 0;
+  overflow: auto; /* scroll apenas no conteúdo do sidenav */
+}
+
+// Code container - compact spacing
+.code-container {
+  position: relative;
+  padding: 8px;
+  margin: 0;
+}
+.code-container pre { margin: 0; padding: 0; }
+
+// Tree card compact
+.tree-card { margin: 0; }
+.tree-card .mat-mdc-card-content { padding: 4px 6px; }
+
+// Reduce grid gap to minimize empty areas
+.code-log-grid { gap: 6px; }

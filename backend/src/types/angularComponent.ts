@@ -73,10 +73,18 @@ export interface ScanResult {
   scannedFiles: number;
   errors: ScanError[];
   scanTime: number;
+  fileTree?: FileTreeNode[];
 }
 
 export interface ScanError {
   filePath: string;
   error: string;
   lineNumber?: number;
+}
+
+export interface FileTreeNode {
+  name: string;
+  path: string;
+  isFile: boolean;
+  children?: FileTreeNode[];
 }
