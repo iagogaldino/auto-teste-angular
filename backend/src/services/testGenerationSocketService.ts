@@ -117,6 +117,7 @@ export class TestGenerationSocketService {
       socket.emit('test-generation-started', { files: data.files });
 
       const results: TestGenerationResult[] = [];
+      const generatedFiles: { filePath: string; fileName: string; directory: string; content: string }[] = [];
       const totalFiles = data.files.length;
 
       for (let i = 0; i < data.files.length; i++) {
@@ -206,8 +207,22 @@ export class TestGenerationSocketService {
 
             fs.writeFileSync(specFilePath, codeToWrite, 'utf8');
 
+            const fileName = path.basename(specFilePath);
+            const directory = path.dirname(specFilePath);
+
+            // Persistir para retorno ao final
+            generatedFiles.push({
+              filePath: specFilePath,
+              fileName,
+              directory,
+              content: codeToWrite
+            });
+
             socket.emit('test-file-created', {
               filePath: specFilePath,
+              fileName,
+              directory,
+              content: codeToWrite,
               success: true
             });
           } catch (autoWriteErr) {
@@ -238,8 +253,8 @@ export class TestGenerationSocketService {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
-      // Enviar resultado final
-      socket.emit('test-generation-completed', { results });
+      // Enviar resultado final com arquivos gerados
+      socket.emit('test-generation-completed', { results, generatedFiles });
 
     } catch (error) {
       socket.emit('test-generation-error', { 

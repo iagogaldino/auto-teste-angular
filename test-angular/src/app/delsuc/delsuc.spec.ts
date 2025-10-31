@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { ComponentFixture } from '@angular/core/testing';
 import Delsuc from './delsuc';
+import { ComponentFixture } from '@angular/core/testing';
 
 describe('Delsuc', () => {
   let fixture: ComponentFixture<Delsuc>;
@@ -16,7 +16,7 @@ describe('Delsuc', () => {
     fixture.detectChanges();
   });
 
-  it('should create the component', () => {
+  it('should create', () => {
     expect(component).toBeTruthy();
   });
 });

@@ -16,16 +16,16 @@ describe('CalculatorComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should initialize result signal with 0', () => {
+  it('should have initial result as 0', () => {
     expect(component.result()).toBe(0);
-  });
-
-  it('should set result to 20 when calculate is called', () => {
-    component.calculate();
-    expect(component.result()).toBe(20);
   });
 
   it('addTenPlusTen should return 20', () => {
     expect(component.addTenPlusTen()).toBe(20);
+  });
+
+  it('calculate should set result to 20', () => {
+    component.calculate();
+    expect(component.result()).toBe(20);
   });
 });

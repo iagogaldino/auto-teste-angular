@@ -17,7 +17,7 @@ export interface SocketEvents {
   'test-generation-started': { files: string[] };
   'test-generation-progress': { current: number; total: number; currentFile: string };
   'test-generated': { filePath: string; testCode: string; explanation: string };
-  'test-generation-completed': { results: any[] };
+  'test-generation-completed': { results: any[]; generatedFiles?: { filePath: string; fileName: string; directory: string; content: string }[] };
   'test-generation-error': { error: string };
   
   'execute-test': { filePath: string; testCode: string; originalFilePath: string };

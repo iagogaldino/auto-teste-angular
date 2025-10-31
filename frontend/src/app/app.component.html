@@ -74,9 +74,7 @@
               <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild" class="tree-folder-node">
                 <div class="tree-folder-content" matTreeNodePadding [matTreeNodePaddingIndent]="8">
                   <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
-                    <mat-icon>
-                      {{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}
-                    </mat-icon>
+                    <mat-icon>{{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}</mat-icon>
                   </button>
                   <span class="folder-name clickable" (click)="treeControl.toggle(node)">{{ node.name }}</span>
                 </div>
@@ -97,6 +95,7 @@
                 <mat-icon>{{ isSpecPath(node.path) ? 'assignment_turned_in' : 'description' }}</mat-icon>
                 <span class="file-name clickable" (click)="toggleInlineFile(node)" [ngClass]="{ 'is-new-spec': isSpecPath(node.path) && isNewSpec(node.path), 'selected': isPathSelected(node.path) }">
                   {{ node.name }}
+                  <span *ngIf="isSpecPath(node.path) && isNewSpec(node.path)" class="new-label">Novo</span>
                 </span>
               </mat-tree-node>
             </mat-tree>
@@ -108,7 +107,7 @@
         <div class="code-log-grid" [ngClass]="{ 'three-cols': isSpecPath(previewPath() || '') , 'two-cols': !isSpecPath(previewPath() || '') }"
              [style.gridTemplateColumns]="isSpecPath(previewPath() || '') ? ('1fr 6px 1fr') : ('1fr')">
           <div class="col code">
-            <div class="code-container" *ngIf="previewPath()" [attr.data-key]="previewPath() + ':' + codeRenderKey()">
+            <div class="code-container" *ngIf="previewPath()" [attr.data-key]="previewPath() + ':' + codeRenderKey()" [ngClass]="{ 'skeleton-loading': isCreatingTest() || isGeneratingTests() }">
               <div class="code-actions-overlay">
                 <!-- Executar (somente para .spec.ts) -->
                 <button *ngIf="isSpecPath(previewPath() || '')"

@@ -137,9 +137,9 @@ export class SocketService {
     });
   }
 
-  onTestGenerationCompleted(): Observable<{ results: TestGenerationResult[] }> {
+  onTestGenerationCompleted(): Observable<{ results: TestGenerationResult[]; generatedFiles?: { filePath: string; fileName: string; directory: string; content: string }[] }> {
     return new Observable(observer => {
-      this.socket.on('test-generation-completed', (data: { results: TestGenerationResult[] }) => observer.next(data));
+      this.socket.on('test-generation-completed', (data: { results: TestGenerationResult[]; generatedFiles?: { filePath: string; fileName: string; directory: string; content: string }[] }) => observer.next(data));
     });
   }
 
@@ -161,9 +161,9 @@ export class SocketService {
     });
   }
 
-  onTestFileCreated(): Observable<{ filePath: string; success: boolean }> {
+  onTestFileCreated(): Observable<{ filePath: string; fileName?: string; directory?: string; content?: string; success: boolean }> {
     return new Observable(observer => {
-      this.socket.on('test-file-created', (data: { filePath: string; success: boolean }) => observer.next(data));
+      this.socket.on('test-file-created', (data: { filePath: string; fileName?: string; directory?: string; content?: string; success: boolean }) => observer.next(data));
     });
   }
 

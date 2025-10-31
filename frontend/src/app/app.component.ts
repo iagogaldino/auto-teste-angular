@@ -361,6 +361,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     this.socketService.onTestGenerated().subscribe(result => {
+      try { console.log('[socket] test-generated', result); } catch {}
       // Adiciona timestamp ao resultado
       const resultWithTimestamp = {
         ...result,
@@ -381,13 +382,15 @@ export class AppComponent implements OnInit, OnDestroy {
         }
       });
       this.statusMessage.set(`Teste gerado: ${result.filePath}`);
+      // Não altera a árvore aqui; a inclusão ocorre no evento test-file-created
     });
 
     this.socketService.onTestGenerationCompleted().subscribe(data => {
+      try { console.log('[socket] test-generation-completed', data); } catch {}
       this.isGeneratingTests.set(false);
       this.testProgress.set(null);
       this.statusMessage.set(`Geração concluída: ${data.results.filter(r => r.success).length}/${data.results.length} sucessos`);
-
+      // Não alteramos a lista aqui para evitar recarregar; adicionamos apenas no evento por arquivo
     });
 
     this.socketService.onTestGenerationError().subscribe(data => {
@@ -398,6 +401,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // Criação de arquivo de teste
     this.socketService.onTestFileCreated().subscribe(data => {
+      try { console.log('[socket] test-file-created', data); } catch {}
       this.isCreatingTest.set(false);
       if (data.success) {
         this.statusMessage.set(`Arquivo de teste criado: ${data.filePath}`);
@@ -408,26 +412,15 @@ export class AppComponent implements OnInit, OnDestroy {
         if (base && (abs === base || abs.startsWith(base + '/'))) {
           rel = abs.slice(base.length).replace(/^\//, '');
         }
-        // Se ainda não está na lista, adiciona como componente genérico
-        const exists = this.scannedComponents().some(c => c.filePath.replace(/\\/g, '/') === rel);
-        if (!exists) {
-          const newComp: AngularComponent = {
-            name: (rel.split('/').pop() || rel).replace('.ts', ''),
-            filePath: rel,
-            selector: '',
-            isStandalone: true,
-            imports: [],
-            methods: [],
-            properties: [],
-            signals: [],
-            computedSignals: [],
-            interfaces: [],
-            dependencies: []
-          } as any;
-          this.scannedComponents.update(list => [...list, newComp]);
-          this.treeDataSource.data = this.buildTreeFromComponents(this.scannedComponents());
-          this.treeControl.dataNodes = this.treeDataSource.data;
+        // Se veio conteúdo no evento, já cacheia para preview rápido
+        if (data.content) {
+          this.inlineFileContents.update(map => ({ ...map, [rel]: data.content || '', [abs]: data.content || '' }));
         }
+        // Apenas insere na árvore sem reconstruir lista completa
+        const isAbsoluteWin = /:\\/.test(abs) || /:\//.test(abs);
+        const isAbsoluteUnix = abs.startsWith('/');
+        const safePath = (isAbsoluteWin || isAbsoluteUnix) ? rel : rel;
+        this.insertFileIntoTree(safePath);
         // Marca como novo (azul) até interação
         this.newSpecHighlights.update(m => ({ ...m, [rel]: true }));
         // Limpa a mensagem após 5 segundos
@@ -787,6 +780,93 @@ export class AppComponent implements OnInit, OnDestroy {
     if (!next) {
       // Ao sair do modo de seleção, não alteramos seleção atual, apenas escondemos os checkboxes
     }
+  }
+
+  // ===== Tree helpers para atualizações granulares =====
+  private findFolderNodeByPath(nodes: TreeNode[], path: string): TreeNode | null {
+    for (const node of nodes) {
+      if (!node.isFile) {
+        if (node.path === path) return node;
+        const child = this.findFolderNodeByPath(node.children || [], path);
+        if (child) return child;
+      }
+    }
+    return null;
+  }
+
+  // Garante que a hierarquia de pastas exista na árvore e retorna o nó pai
+  private ensureFolderPath(folderPath: string): TreeNode | null {
+    const normalized = (folderPath || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    if (!normalized) return null;
+    const segments = normalized.split('/');
+    let currentNodes = this.treeDataSource.data as TreeNode[];
+    let parent: TreeNode | null = null;
+    let accumulated: string[] = [];
+
+    for (const seg of segments) {
+      accumulated.push(seg);
+      const currentPath = accumulated.join('/');
+      let folderNode = currentNodes.find(n => !n.isFile && n.path === currentPath) || null;
+      if (!folderNode) {
+        folderNode = { name: seg, path: currentPath, isFile: false, children: [] } as TreeNode;
+        currentNodes.push(folderNode);
+        // Reordena: pastas primeiro, depois arquivos
+        currentNodes.sort((a, b) => (a.isFile !== b.isFile ? (a.isFile ? 1 : -1) : a.name.localeCompare(b.name)));
+      }
+      parent = folderNode;
+      folderNode.children = folderNode.children || [];
+      currentNodes = folderNode.children;
+    }
+
+    // Atualiza dataNodes após modificações
+    this.treeDataSource.data = [...this.treeDataSource.data];
+    this.treeControl.dataNodes = this.treeDataSource.data;
+    return parent;
+  }
+
+  private insertFileIntoTree(filePath: string): void {
+    const normalized = filePath.replace(/\\/g, '/');
+    const parts = normalized.split('/');
+    const fileName = parts.pop() || normalized;
+    const parentPath = parts.join('/');
+
+    // Caso arquivo na raiz do projeto escaneado
+    if (!parentPath) {
+      const existsAtRoot = (this.treeDataSource.data || []).some(c => c.isFile && c.path === normalized);
+      if (existsAtRoot) return;
+      const newRootNode: TreeNode = {
+        name: fileName,
+        path: normalized,
+        isFile: true,
+        isSpec: /\.spec\.ts$/i.test(fileName)
+      } as any;
+      const foldersFirst = (a: TreeNode, b: TreeNode) => (a.isFile !== b.isFile ? (a.isFile ? 1 : -1) : a.name.localeCompare(b.name));
+      this.treeDataSource.data = [...(this.treeDataSource.data || []), newRootNode].sort(foldersFirst);
+      this.treeControl.dataNodes = this.treeDataSource.data;
+      return;
+    }
+
+    let parent = this.findFolderNodeByPath(this.treeDataSource.data, parentPath);
+    if (!parent) {
+      // Cria hierarquia de pastas que não existirem
+      parent = this.ensureFolderPath(parentPath);
+    }
+    if (!parent) return;
+
+    const exists = (parent.children || []).some(c => c.isFile && c.path === normalized);
+    if (exists) return;
+
+    const newNode: TreeNode = {
+      name: fileName,
+      path: normalized,
+      isFile: true,
+      isSpec: /\.spec\.ts$/i.test(fileName)
+    } as any;
+
+    parent.children = [...(parent.children || []), newNode].sort((a, b) => a.name.localeCompare(b.name));
+    // dispara atualização sem reconstruir toda a árvore
+    this.treeDataSource.data = [...this.treeDataSource.data];
+    this.treeControl.dataNodes = this.treeDataSource.data;
   }
 
   private buildTreeFromComponents(components: AngularComponent[]): TreeNode[] {
