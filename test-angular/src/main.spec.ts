@@ -1,23 +1,34 @@
-import { TestBed } from '@angular/core/testing';
-import { main } from './main';
+import main from './main';
 
-describe('main (standalone entrypoint component)', () => {
+describe('main bootstrap', () => {
+  let originalConsoleError: typeof console.error;
+
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [main],
-    });
+    originalConsoleError = console.error;
+    console.error = jest.fn();
+    jest.resetModules();
   });
 
-  it('should create the main component successfully', () => {
-    const fixture = TestBed.createComponent(main);
-    const instance = fixture.componentInstance;
-    expect(instance).toBeTruthy();
+  afterEach(() => {
+    console.error = originalConsoleError;
   });
 
-  it('should render the main component without errors', () => {
-    const fixture = TestBed.createComponent(main);
-    fixture.detectChanges();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled).toBeDefined();
+  it('should bootstrap without throwing error', async () => {
+    const mockBootstrap = jest.fn().mockResolvedValue(undefined);
+    jest.doMock('@angular/platform-browser', () => ({
+      bootstrapApplication: mockBootstrap,
+    }));
+    const { default: mainFile } = await import('./main');
+    expect(mockBootstrap).toHaveBeenCalled();
+  });
+
+  it('should catch and log errors thrown during bootstrap', async () => {
+    const error = new Error('Bootstrap failed');
+    const mockBootstrap = jest.fn().mockRejectedValue(error);
+    jest.doMock('@angular/platform-browser', () => ({
+      bootstrapApplication: mockBootstrap,
+    }));
+    await import('./main');
+    expect(console.error).toHaveBeenCalledWith(error);
   });
 });

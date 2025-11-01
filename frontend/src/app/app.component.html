@@ -1,112 +1,51 @@
 <div class="app-container">
-  <app-splash *ngIf="showSplash()" (complete)="showSplash.set(false)"></app-splash>
+  @if (showSplash()) {
+    <app-splash (complete)="showSplash.set(false)"></app-splash>
+  }
 
-  <!-- Header -->
-  <mat-toolbar color="primary" class="app-header">
-    <mat-toolbar-row>
-      <div class="brand">
-        <img src="/assets/logo-stackspot-ai.svg" alt="Logo" class="app-logo" width="139" height="24" />
-        <span class="app-title">DelsucTest</span>
-      </div>
-      <span class="spacer"></span>
-      <button mat-icon-button (click)="toggleAiChat()" title="Chat com IA">
-        <mat-icon>{{ showAiChat() ? 'chat' : 'chat_bubble_outline' }}</mat-icon>
-      </button>
-      <button mat-icon-button (click)="openConfigModal()" title="Configurações" color="primary">
-        <mat-icon>settings</mat-icon>
-      </button>
-      <mat-chip-listbox>
-        <mat-chip [color]="isConnected() ? 'accent' : 'warn'">
-          {{ isConnected() ? 'Conectado' : 'Desconectado' }}
-        </mat-chip>
-      </mat-chip-listbox>
-    </mat-toolbar-row>
-    <mat-toolbar-row class="top-menu-row">
-      <div class="top-menu">
-        <button mat-raised-button color="primary" (click)="openProjectFromMenu()">
-          <mat-icon>folder_open</mat-icon>
-          Abrir Projeto
-        </button>
-        <button mat-raised-button color="accent" (click)="runAllTestsFromMenu()" [disabled]="!directoryPath().trim() || isExecutingAllTests()">
-          <mat-icon>{{ isExecutingAllTests() ? 'hourglass_empty' : 'play_arrow' }}</mat-icon>
-          Executar Testes
-        </button>
-        <button 
-          mat-raised-button 
-          color="accent" 
-          (click)="openOrRunAiAutoFlow()" 
-          [disabled]="autoFlowRunning() ? false : (!selectedFiles().length || isGeneratingTests() || isExecutingAllTests())"
-          title="Gerar, executar e corrigir automaticamente com IA"
-        >
-          <mat-icon>{{ autoFlowRunning() ? 'hourglass_empty' : 'auto_awesome' }}</mat-icon>
-          {{ autoFlowRunning() ? 'Processando...' : 'Gerar com IA' }}
-        </button>
-        <span class="spacer"></span>
-        
-        
-        
-      </div>
-    </mat-toolbar-row>
-  </mat-toolbar>
+  <!-- Header extraído -->
+  <app-header
+    [connected]="isConnected()"
+    [isExecutingAll]="!directoryPath().trim() || isExecutingAllTests()"
+    [autoFlowRunning]="autoFlowRunning()"
+    [hasSelection]="selectedFiles().length > 0"
+    [isGeneratingTests]="isGeneratingTests()"
+    (openProject)="openProjectFromMenu()"
+    (runAllTests)="runAllTestsFromMenu()"
+    (openOrRunAutoFlow)="openOrRunAiAutoFlow()"
+    (toggleAiChat)="toggleAiChat()"
+    (openConfig)="openConfigModal()"
+  ></app-header>
 
   <!-- Main Content -->
   <div class="main-content">
     
     <!-- Layout com Angular Material Sidenav -->
-    <mat-sidenav-container class="app-sidenav-container" *ngIf="scannedComponents().length > 0">
+    @if (scannedComponents().length > 0) {
+    <mat-sidenav-container class="app-sidenav-container">
       <mat-sidenav class="app-sidenav" mode="side" opened>
         <mat-card class="tree-card">
           <mat-card-content>
-            <div class="sidenav-actions">
-              <button mat-icon-button (click)="toggleSelectionMode()" [disabled]="scannedComponents().length === 0" [color]="selectionMode() ? 'warn' : undefined" title="Selecionar múltiplos">
-                <mat-icon>{{ selectionMode() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
-              </button>
-              <button mat-icon-button (click)="selectAllFiles()" title="Selecionar todos">
-                <mat-icon>select_all</mat-icon>
-              </button>
-              <button mat-icon-button (click)="clearSelection()" title="Limpar seleção">
-                <mat-icon>clear_all</mat-icon>
-              </button>
-                <button 
-                  mat-raised-button 
-                  color="primary" 
-                  (click)="generateTests()" 
-                  [disabled]="selectedFiles().length === 0 || isGeneratingTests()"
-                  title="Gerar testes para os selecionados"
-                >
-                  <mat-icon>{{ isGeneratingTests() ? 'refresh' : 'rocket_launch' }}</mat-icon>
-                  Gerar Selecionados
-                </button>
-            </div>
-            <mat-tree [dataSource]="treeDataSource" [treeControl]="treeControl" class="project-tree">
-              <!-- Nó de diretório (pasta) -->
-              <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild" class="tree-folder-node">
-                <div class="tree-folder-content" matTreeNodePadding [matTreeNodePaddingIndent]="30">
-                  <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
-                    <mat-icon>{{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}</mat-icon>
-                  </button>
-                  <span class="folder-name clickable" (click)="treeControl.toggle(node)">{{ node.name }}</span>
-                </div>
-                <div [class.tree-children]="true" *ngIf="treeControl.isExpanded(node)">
-                  <ng-container matTreeNodeOutlet></ng-container>
-                </div>
-              </mat-nested-tree-node>
-
-              <!-- Nó de arquivo -->
-              <mat-tree-node *matTreeNodeDef="let node" class="tree-file-node" matTreeNodePadding [matTreeNodePaddingIndent]="30">
-                <mat-checkbox *ngIf="selectionMode()"
-                  [checked]="selectedFiles().includes(node.path)"
-                  (change)="toggleFileSelection(node.path)"
-                  [disabled]="!node.isFile || isSpecPath(node.path)"
-                  title="{{ isSpecPath(node.path) ? 'Arquivos .spec.ts não são selecionáveis' : 'Selecionar arquivo' }}"
-                ></mat-checkbox>
-                <mat-icon>{{ isSpecPath(node.path) ? 'assignment_turned_in' : 'description' }}</mat-icon>
-                <span class="file-name clickable" (click)="toggleInlineFile(node)" [ngClass]="{ 'is-new-spec': isSpecPath(node.path) && isNewSpec(node.path), 'selected': isPathSelected(node.path) }">
-                  {{ node.name }}
-                  <span *ngIf="isSpecPath(node.path) && isNewSpec(node.path)" class="new-label">Novo</span>
-                </span>
-              </mat-tree-node>
-            </mat-tree>
+            <app-sidenav-actions
+              [selectionMode]="selectionMode()"
+              [hasComponents]="scannedComponents().length > 0"
+              [isGenerating]="isGeneratingTests()"
+              [selectedCount]="selectedFiles().length"
+              (toggleSelectionMode)="toggleSelectionMode()"
+              (selectAll)="selectAllFiles()"
+              (clearSelection)="clearSelection()"
+              (generate)="generateTests()"
+            ></app-sidenav-actions>
+            <app-project-tree
+              [dataSource]="treeDataSource"
+              [treeControl]="treeControl"
+              [selectionMode]="selectionMode()"
+              [selectedFiles]="selectedFiles()"
+              [previewPath]="previewPath() || null"
+              [newSpecHighlights]="newSpecHighlights()"
+              (toggleSelection)="toggleFileSelection($event)"
+              (openNode)="toggleInlineFile($event)"
+            ></app-project-tree>
             
             
           </mat-card-content>
@@ -117,42 +56,28 @@
         <div class="code-log-grid" [ngClass]="{ 'three-cols': isSpecPath(previewPath() || '') , 'two-cols': !isSpecPath(previewPath() || '') }"
              [style.gridTemplateColumns]="isSpecPath(previewPath() || '') ? ('1fr 6px 1fr') : ('1fr')">
           <div class="col code">
-            <div class="code-container" *ngIf="previewPath()" [attr.data-key]="previewPath() + ':' + codeRenderKey()" [ngClass]="{ 'skeleton-loading': isCreatingTest() || isGeneratingTests() }">
-              <div class="code-actions-overlay">
-                <!-- Executar (somente para .spec.ts) -->
-                <button *ngIf="isSpecPath(previewPath() || '')"
-                        mat-icon-button color="primary" (click)="executeCurrentSpec()"
-                        [disabled]="isExecutingTest()" title="Executar teste">
-                  <mat-icon>{{ isExecutingTest() ? 'hourglass_empty' : 'play_arrow' }}</mat-icon>
-                </button>
-                <!-- Gerar teste (somente para .ts não spec) -->
-                <button *ngIf="!isSpecPath(previewPath() || '')"
-                        mat-icon-button color="accent" (click)="generateCurrentTest()"
-                        [disabled]="isCreatingTest()" title="Gerar teste">
-                  <mat-icon>auto_awesome</mat-icon>
-                </button>
-              </div>
-              <pre><code class="language-typescript" [attr.data-path]="previewPath()" [attr.data-version]="codeRenderKey()" [textContent]="getInlineContent(previewPath()!)"></code></pre>
-            </div>
+            <app-code-viewer
+              [path]="previewPath() || null"
+              [isSpec]="isSpecPath(previewPath() || '')"
+              [content]="previewPath() ? getInlineContent(previewPath()!) : ''"
+              [busy]="isCreatingTest() || isGeneratingTests() || isExecutingTest()"
+              [codeRenderKey]="codeRenderKey()"
+              (executeSpec)="executeCurrentSpec()"
+              (generateTest)="generateCurrentTest()"
+            ></app-code-viewer>
           </div>
-          <div class="v-resizer" *ngIf="isSpecPath(previewPath() || '')" (mousedown)="startResize('code-log', $event)"></div>
-          <div class="col log" *ngIf="isSpecPath(previewPath() || '')">
-            <div class="execution-output" [ngClass]="getExecutionStatusClass(specExecutions()[directoryPath() + '/' + previewPath()]?.status || 'running')">
-              <div class="log-actions" *ngIf="specExecutions()[directoryPath() + '/' + previewPath()]?.status === 'error'">
-                <button 
-                  mat-raised-button 
-                  color="warn" 
-                  (click)="fixCurrentSpecFromLog()"
-                  [disabled]="isFixingTest()"
-                  title="Corrigir teste com base no erro do log"
-                >
-                  <mat-icon>{{ isFixingTest() ? 'hourglass_empty' : 'build' }}</mat-icon>
-                  {{ isFixingTest() ? 'Corrigindo...' : 'Corrigir com IA' }}
-                </button>
-              </div>
-              <pre class="output-content">{{ specExecutions()[directoryPath() + '/' + previewPath()]?.output }}</pre>
+          @if (isSpecPath(previewPath() || '')) {
+            <div class="v-resizer" (mousedown)="startResize('code-log', $event)"></div>
+            <div class="col log">
+              <app-spec-execution-log
+                [status]="specExecutions()[directoryPath() + '/' + previewPath()]?.status || 'running'"
+                [output]="specExecutions()[directoryPath() + '/' + previewPath()]?.output || ''"
+                [isFixing]="isFixingTest()"
+                [filePath]="directoryPath() + '/' + (previewPath() || '')"
+                (fixFromLog)="fixCurrentSpecFromLog()"
+              ></app-spec-execution-log>
             </div>
-          </div>
+          }
         </div>
       </mat-sidenav-content>
 
@@ -161,210 +86,40 @@
         <app-ai-chat (close)="toggleAiChat()" [directoryPath]="directoryPath()"></app-ai-chat>
       </mat-sidenav>
     </mat-sidenav-container>
+    }
 
   </div>
  
    <!-- Modals -->
  
-   <!-- Test Details Modal -->
-  <div class="test-details-modal" *ngIf="selectedTestResult()" (click)="closeTestDetails()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h3>Detalhes do Teste: {{ getFileName(selectedTestResult()!.filePath) }}</h3>
-        <button mat-icon-button (click)="closeTestDetails()" class="close-modal">
-          <mat-icon>close</mat-icon>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="test-details-content" *ngIf="selectedTestResult()!.success">
-          <div class="explanation">
-            <h4>📝 Explicação:</h4>
-            <p>{{ selectedTestResult()!.explanation }}</p>
-          </div>
+  @if (selectedTestResult()) {
+    <app-test-details-modal
+      [result]="selectedTestResult()!"
+      [isCreating]="isCreatingTest()"
+      [isExecuting]="isExecutingTest()"
+      [isFixing]="isFixingTest()"
+      [fixingFile]="fixingTestFile()"
+      (close)="closeTestDetails()"
+      (copy)="copyTestCode($event)"
+      (createFile)="createTestFile($event)"
+      (execute)="executeTest($event)"
+      (regenerateFromError)="regenerateTestFromExecutionError($event)"
+    ></app-test-details-modal>
+  }
 
-          <div class="test-cases" *ngIf="selectedTestResult()!.testCases.length > 0">
-            <h4>🧪 Casos de Teste:</h4>
-            <ul>
-              <li *ngFor="let testCase of selectedTestResult()!.testCases">{{ testCase }}</li>
-            </ul>
-          </div>
-
-          <div class="dependencies" *ngIf="selectedTestResult()!.dependencies.length > 0">
-            <h4>📦 Dependências:</h4>
-            <ul>
-              <li *ngFor="let dep of selectedTestResult()!.dependencies">{{ dep }}</li>
-            </ul>
-          </div>
-
-          <div class="test-code">
-            <div class="test-code-header">
-              <h4>💻 Código do Teste:</h4>
-              <div class="test-code-actions">
-                <button 
-                  mat-raised-button
-                  color="primary"
-                  (click)="copyTestCode(selectedTestResult()!.testCode)"
-                  title="Copiar código"
-                >
-                  <mat-icon>content_copy</mat-icon>
-                  Copiar
-                </button>
-                <button 
-                  mat-raised-button
-                  color="accent"
-                  (click)="createTestFile(selectedTestResult()!)"
-                  [disabled]="isCreatingTest()"
-                  title="Criar arquivo de teste no projeto"
-                >
-                  <mat-icon>{{ isCreatingTest() ? 'hourglass_empty' : 'save' }}</mat-icon>
-                  {{ isCreatingTest() ? 'Criando...' : 'Criar Teste' }}
-                </button>
-                <button 
-                  mat-raised-button
-                  color="primary"
-                  (click)="executeTest(selectedTestResult()!)"
-                  [disabled]="isExecutingTest() || !selectedTestResult()!.success"
-                  title="Executar teste com Jest"
-                >
-                  <mat-icon>{{ isExecutingTest() ? 'hourglass_empty' : 'play_arrow' }}</mat-icon>
-                  {{ isExecutingTest() ? 'Executando...' : 'Executar Teste' }}
-                </button>
-              </div>
-            </div>
-            <div class="code-container">
-              <pre><code class="typescript">{{ formatTestCode(selectedTestResult()!.testCode) }}</code></pre>
-            </div>
-            
-            <!-- Test Execution Section -->
-            <div class="test-execution" *ngIf="selectedTestResult()!.testExecution">
-              <div class="test-execution-header">
-                <h4>🧪 Execução do Teste:</h4>
-                <div class="execution-status">
-                  <button 
-                    *ngIf="selectedTestResult()!.testExecution!.status === 'error'"
-                    mat-raised-button
-                    color="warn"
-                    (click)="regenerateTestFromExecutionError(selectedTestResult()!)"
-                    [disabled]="isFixingTest() || fixingTestFile() === selectedTestResult()!.filePath"
-                    title="Gerar novo teste corrigindo o erro de execução"
-                    class="regenerate-button"
-                  >
-                    <mat-icon>{{ isFixingTest() && fixingTestFile() === selectedTestResult()!.filePath ? 'hourglass_empty' : 'autorenew' }}</mat-icon>
-                    {{ isFixingTest() && fixingTestFile() === selectedTestResult()!.filePath ? 'Corrigindo...' : 'Corrigir com IA' }}
-                  </button>
-                  <span class="status-badge" [class]="getExecutionStatusClass(selectedTestResult()!.testExecution!.status)">
-                    {{ getExecutionStatusText(selectedTestResult()!.testExecution!.status) }}
-                  </span>
-                </div>
-              </div>
-              <div class="execution-output">
-                <pre class="output-content">{{ selectedTestResult()!.testExecution!.output }}</pre>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="result-error" *ngIf="!selectedTestResult()!.success">
-          <div class="error-content">
-            <div class="error-header">
-              <mat-icon color="warn">error</mat-icon>
-              <h4>Detalhes do Erro</h4>
-            </div>
-            <div class="error-message-box">
-              <div class="error-label">Arquivo:</div>
-              <div class="error-value">{{ selectedTestResult()!.filePath }}</div>
-            </div>
-            <div class="error-message-box" *ngIf="selectedTestResult()!.timestamp">
-              <div class="error-label">Data/Hora:</div>
-              <div class="error-value">{{ selectedTestResult()!.timestamp | date:'dd/MM/yyyy HH:mm:ss' }}</div>
-            </div>
-            <div class="error-message-box">
-              <div class="error-label">Mensagem de Erro:</div>
-              <div class="error-text">{{ formatErrorMessage(selectedTestResult()!.error) }}</div>
-            </div>
-            <div class="error-actions">
-              <button 
-                mat-raised-button
-                color="warn"
-                (click)="retryTest(selectedTestResult()!)"
-                [disabled]="isGeneratingTests()"
-                title="Refazer teste"
-              >
-                <mat-icon>{{ isGeneratingTests() ? 'hourglass_empty' : 'refresh' }}</mat-icon>
-                {{ isGeneratingTests() ? 'Refazendo...' : 'Refazer Teste' }}
-              </button>
-              <button 
-                mat-raised-button
-                color="accent"
-                (click)="fixTestError(selectedTestResult()!)"
-                [disabled]="isFixingTest() || fixingTestFile() === selectedTestResult()!.filePath"
-                title="Melhorar teste com IA"
-              >
-                <mat-icon>{{ isFixingTest() && fixingTestFile() === selectedTestResult()!.filePath ? 'hourglass_empty' : 'build' }}</mat-icon>
-                {{ isFixingTest() && fixingTestFile() === selectedTestResult()!.filePath ? 'Melhorando...' : 'Melhorar com IA' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Custom Prompt Modal -->
-  <div class="custom-prompt-modal" *ngIf="showCustomPromptDialog()" (click)="closeCustomPromptDialog()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h3>🔧 Melhorar Teste com IA</h3>
-        <button mat-icon-button (click)="closeCustomPromptDialog()" class="close-modal">
-          <mat-icon>close</mat-icon>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="prompt-section">
-          <h5>💬 Instruções para a IA:</h5>
-          <p class="prompt-description">
-            Descreva o que você gostaria que a IA faça com este teste. Seja específico sobre as melhorias desejadas.
-          </p>
-          <textarea 
-            [(ngModel)]="customPrompt"
-            class="prompt-textarea"
-            placeholder="Ex: Adicione mais casos de teste para edge cases, melhore a cobertura de código, corrija os mocks, etc..."
-            rows="6"
-            (keydown.enter)="$event.preventDefault(); $event.stopPropagation(); processCustomPrompt()"
-          ></textarea>
-        </div>
-
-        <div class="modal-actions">
-          <button 
-            mat-raised-button
-            color="warn"
-            (click)="closeCustomPromptDialog()"
-          >
-            <mat-icon>cancel</mat-icon>
-            Cancelar
-          </button>
-          <button 
-            mat-raised-button
-            color="primary"
-            (click)="processCustomPrompt()"
-            [disabled]="!customPrompt().trim() || isFixingTest()"
-          >
-            <ng-container *ngIf="isFixingTest(); else rocketIcon">
-              <mat-progress-spinner class="btn-spinner" mode="indeterminate" [diameter]="18" [strokeWidth]="3"></mat-progress-spinner>
-              Processando...
-            </ng-container>
-            <ng-template #rocketIcon>
-              <mat-icon>rocket_launch</mat-icon>
-              Processar com IA
-            </ng-template>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
+  @if (showCustomPromptDialog()) {
+    <app-custom-prompt-modal
+      [value]="customPrompt()"
+      [busy]="isFixingTest()"
+      (valueChange)="customPrompt.set($event)"
+      (cancel)="closeCustomPromptDialog()"
+      (submit)="processCustomPrompt()"
+    ></app-custom-prompt-modal>
+  }
 
   <!-- Configuration Modal -->
-  <div class="config-modal" *ngIf="showConfigModal()" (click)="closeConfigModal()">
+  @if (showConfigModal()) {
+  <div class="config-modal" (click)="closeConfigModal()">
     <div class="modal-content config-modal-content" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h3>
@@ -421,13 +176,16 @@
                 </select>
               </mat-form-field>
 
-              <mat-form-field appearance="fill" *ngIf="configAiProvider() === 'openai'">
+              @if (configAiProvider() === 'openai') {
+              <mat-form-field appearance="fill">
                 <mat-label>OpenAI API Key</mat-label>
                 <input matInput type="password" [ngModel]="configOpenaiKey()" (ngModelChange)="configOpenaiKey.set($event)">
                 <mat-hint>Chave da API OpenAI</mat-hint>
               </mat-form-field>
+              }
 
-              <div *ngIf="configAiProvider() === 'stackspot'" class="stackspot-config">
+              @if (configAiProvider() === 'stackspot') {
+              <div class="stackspot-config">
                 <h4>Configurações StackSpot</h4>
                 <!-- Alerta informativo com link para criação de conta e agente -->
                 <div class="config-info">
@@ -470,6 +228,7 @@
                   <input matInput [ngModel]="configStackspotAgentChatUrl()" (ngModelChange)="configStackspotAgentChatUrl.set($event)">
                 </mat-form-field>
               </div>
+              }
             </div>
           </mat-tab>
 
@@ -500,12 +259,14 @@
         </div>
 
         <!-- Feedback de salvamento -->
-        <div class="config-save-feedback" *ngIf="configSaveMessage()">
-          <div [class]="configSaveSuccess() ? 'save-success' : 'save-error'">
-            <mat-icon>{{ configSaveSuccess() ? 'check_circle' : 'error' }}</mat-icon>
-            <span>{{ configSaveMessage() }}</span>
+        @if (configSaveMessage()) {
+          <div class="config-save-feedback">
+            <div [class]="configSaveSuccess() ? 'save-success' : 'save-error'">
+              <mat-icon>{{ configSaveSuccess() ? 'check_circle' : 'error' }}</mat-icon>
+              <span>{{ configSaveMessage() }}</span>
+            </div>
           </div>
-        </div>
+        }
 
         <div class="modal-actions">
           <button mat-raised-button color="warn" (click)="closeConfigModal()">
@@ -520,6 +281,7 @@
       </div>
     </div>
   </div>
+  }
   <!-- Footer -->
   <footer class="app-footer">
     <div class="footer-content">
@@ -527,49 +289,18 @@
     </div>
   </footer>
 
-  <!-- All Tests Execution Modal -->
-  <div class="test-details-modal" *ngIf="showAllTestsModal()" (click)="closeAllTestsModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h3>Execução de Todos os Testes</h3>
-        <button mat-icon-button (click)="closeAllTestsModal()" class="close-modal">
-          <mat-icon>close</mat-icon>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="all-tests-execution" *ngIf="allTestsExecution()">
-          <div 
-            class="execution-output" 
-            [ngClass]="getAllTestsExecutionStatusClass(allTestsExecution()!.status)"
-            #allTestsOutputContainer
-          >
-            <pre class="output-content">{{ allTestsExecution()!.output }}</pre>
-          </div>
-        </div>
-        <div class="no-data" *ngIf="!allTestsExecution()">Preparando execução...</div>
-      </div>
-    </div>
-  </div>
+  <app-all-tests-modal
+    [opened]="showAllTestsModal()"
+    [status]="allTestsExecution()?.status || ''"
+    [output]="allTestsExecution()?.output || ''"
+    (close)="closeAllTestsModal()"
+  ></app-all-tests-modal>
 
-  <!-- Auto Flow (Gerar com IA) Modal -->
-  <div class="test-details-modal" *ngIf="showAutoFlowModal()" (click)="showAutoFlowModal.set(false)">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h3>Fluxo Gerar com IA</h3>
-        <button mat-icon-button (click)="toggleAutoFlowPause()" [title]="autoFlowPaused() ? 'Retomar' : 'Pausar'">
-          <mat-icon>{{ autoFlowPaused() ? 'play_arrow' : 'pause' }}</mat-icon>
-        </button>
-        <button mat-icon-button (click)="showAutoFlowModal.set(false)" class="close-modal">
-          <mat-icon>close</mat-icon>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="all-tests-execution">
-          <div class="execution-output running" #autoFlowOutputContainer>
-            <div class="output-content" [innerHTML]="formatAutoFlowLog(autoFlowLog())"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <app-auto-flow-modal
+    [opened]="showAutoFlowModal()"
+    [paused]="autoFlowPaused()"
+    [logHtml]="formatAutoFlowLog(autoFlowLog())"
+    (togglePause)="toggleAutoFlowPause()"
+    (close)="showAutoFlowModal.set(false)"
+  ></app-auto-flow-modal>
 </div>

@@ -1,0 +1,19 @@
+@if (path) {
+<div class="code-container" [attr.data-key]="(path || '') + ':' + codeRenderKey" [ngClass]="{ 'skeleton-loading': busy }">
+	<div class="code-actions-overlay">
+		<!-- Executar (somente para .spec.ts) -->
+		@if (isSpec) {
+			<button mat-icon-button color="primary" (click)="executeSpec.emit()" [disabled]="busy" title="Executar teste">
+				<mat-icon>{{ busy ? 'hourglass_empty' : 'play_arrow' }}</mat-icon>
+			</button>
+		} @else {
+			<button mat-icon-button color="accent" (click)="generateTest.emit()" [disabled]="busy" title="Gerar teste">
+				<mat-icon>auto_awesome</mat-icon>
+			</button>
+		}
+	</div>
+	<pre><code class="language-typescript" [attr.data-path]="path || ''" [attr.data-version]="codeRenderKey" [textContent]="content"></code></pre>
+</div>
+}
+
+

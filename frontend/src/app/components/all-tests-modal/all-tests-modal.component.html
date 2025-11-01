@@ -1,0 +1,31 @@
+@if (opened) {
+<div class="test-details-modal" (click)="close.emit()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+		<div class="modal-header">
+			<h3>Execução de Todos os Testes</h3>
+			<button mat-icon-button (click)="close.emit()" class="close-modal">
+				<mat-icon>close</mat-icon>
+			</button>
+		</div>
+    <div class="modal-body">
+      <div class="all-tests-execution">
+        <div class="execution-output" [ngClass]="status">
+          <div class="execution-status" style="margin-bottom:8px; text-align:center;">
+            @switch (status) {
+              @case ('success') { <span class="status-badge success">Sucesso</span> }
+              @case ('error') { <span class="status-badge error">Erro</span> }
+              @default { <span class="status-badge running">Executando</span> }
+            }
+          </div>
+          <pre class="output-content">{{ output }}</pre>
+        </div>
+      </div>
+      @if (!output) {
+        <div class="no-data">Preparando execução...</div>
+      }
+    </div>
+	</div>
+</div>
+}
+
+

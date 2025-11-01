@@ -1,0 +1,25 @@
+.app-header {
+	background: var(--mat-sys-surface) !important;
+	color: var(--mat-sys-on-surface) !important;
+	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+	padding: 0 8px !important;
+	position: sticky;
+	top: 0;
+	z-index: 5;
+}
+
+.brand { display: flex; align-items: center; gap: 10px; }
+.app-logo { width: 180px; height: 60px; border-radius: 15px; }
+.app-title { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.2px; }
+.spacer { flex: 1 1 auto; }
+
+.top-menu-row {
+	background: var(--mat-sys-surface);
+	border-top: 1px solid var(--mat-sys-outline);
+	padding: 0 8px;
+}
+
+.top-menu { width: 100%; display: flex; gap: 8px; align-items: center; }
+.top-menu button mat-icon { margin-right: 6px; }
+
+

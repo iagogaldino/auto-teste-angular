@@ -1,0 +1,20 @@
+<div class="execution-output" [ngClass]="status">
+    <div class="execution-status" style="margin-bottom:8px;">
+        @switch (status) {
+            @case ('success') { <span class="status-badge success">Sucesso</span> }
+            @case ('error') { <span class="status-badge error">Erro</span> }
+            @default { <span class="status-badge running">Executando</span> }
+        }
+    </div>
+    @if (status === 'error') {
+        <div class="log-actions">
+            <button mat-raised-button color="warn" (click)="fixFromLog.emit()" [disabled]="isFixing" title="Corrigir teste com base no erro do log">
+                @if (isFixing) { <ng-container><mat-icon>hourglass_empty</mat-icon></ng-container> } @else { <ng-container><mat-icon>build</mat-icon></ng-container> }
+                @if (isFixing) { Corrigindo... } @else { Corrigir com IA }
+            </button>
+        </div>
+    }
+    <pre class="output-content">{{ output }}</pre>
+</div>
+
+

@@ -1,9 +1,8 @@
-import { TestBed } from '@angular/core/testing';
 import { routes } from './app.routes';
 
 describe('app.routes', () => {
   beforeEach(() => {
-    // No TestBed configuration needed since this is a routes array, not a component or service
+    // No TestBed configuration needed as we are just testing the exported "routes"
   });
 
   it('should be defined', () => {
@@ -14,7 +13,7 @@ describe('app.routes', () => {
     expect(Array.isArray(routes)).toBe(true);
   });
 
-  it('should be empty initially', () => {
+  it('should have length 0', () => {
     expect(routes.length).toBe(0);
   });
 });

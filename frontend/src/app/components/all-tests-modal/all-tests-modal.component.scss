@@ -1,0 +1,15 @@
+.test-details-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.modal-content { background: var(--mat-sys-surface); border-radius: 12px; max-width: 90vw; max-height: 90vh; overflow-y: auto; overflow-x: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+.modal-header { display: flex; justify-content: center; align-items: center; padding: 20px; border-bottom: 1px solid var(--mat-sys-outline); position: relative; }
+.modal-header h3 { margin: 0; display: flex; align-items: center; gap: 10px; color: var(--mat-sys-on-surface); text-align: center; }
+.close-modal { color: var(--mat-sys-on-surface-variant); position: absolute; right: 16px; }
+.modal-body { padding: 20px; }
+.all-tests-execution { margin-top: 20px; }
+.execution-output { background: #0f1117; border: 2px solid var(--mat-sys-outline); border-radius: 8px; padding: 16px; margin-top: 15px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.03); max-height: 50vh; overflow: auto; }
+.execution-output.success { border-color: #22c55e; }
+.execution-output.error { border-color: #ff3b30; }
+.execution-output.running { border-color: #22d3ee; }
+.output-content { font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1; margin: 0; white-space: pre-wrap; word-break: break-word; }
+.no-data { color: var(--mat-sys-on-surface-variant); font-style: italic; }
+
+

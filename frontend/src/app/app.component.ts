@@ -1,9 +1,11 @@
-import { Component, signal, computed, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { Component, signal, computed, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectionStrategy, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { environment } from '../environments/environment';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SocketService } from './services/socket.service';
 import { ConfigService, EnvironmentConfig } from './services/config.service';
+import { DirectoriesService } from './services/directories.service';
 import { AngularComponent, TestGenerationResult, ScanProgressData, TestGenerationProgress } from './types/socket-events';
 
 // Angular Material imports
@@ -30,6 +32,15 @@ import { NestedTreeControl } from '@angular/cdk/tree';
 import { MatTreeNestedDataSource } from '@angular/material/tree';
 import { SplashComponent } from './components/splash/splash.component';
 import { AiChatComponent } from './components/ai-chat/ai-chat.component';
+import { AppHeaderComponent } from './components/app-header/app-header.component';
+import { SidenavActionsComponent } from './components/sidenav-actions/sidenav-actions.component';
+import { ProjectTreeComponent } from './components/project-tree/project-tree.component';
+import { TestDetailsModalComponent } from './components/test-details-modal/test-details-modal.component';
+import { CustomPromptModalComponent } from './components/custom-prompt-modal/custom-prompt-modal.component';
+import { CodeViewerComponent } from './components/code-viewer/code-viewer.component';
+import { SpecExecutionLogComponent } from './components/spec-execution-log/spec-execution-log.component';
+import { AllTestsModalComponent } from './components/all-tests-modal/all-tests-modal.component';
+import { AutoFlowModalComponent } from './components/auto-flow-modal/auto-flow-modal.component';
 
 // PrismJS global (loaded via CDN in index.html)
 declare const Prism: any;
@@ -62,12 +73,26 @@ export interface TreeNode { name: string; path: string; children?: TreeNode[]; i
     MatProgressSpinnerModule,
     MatSidenavModule,
     SplashComponent,
-    AiChatComponent
+    AiChatComponent,
+    AppHeaderComponent,
+    SidenavActionsComponent,
+    ProjectTreeComponent,
+    TestDetailsModalComponent,
+    CustomPromptModalComponent,
+    CodeViewerComponent,
+    SpecExecutionLogComponent,
+    AllTestsModalComponent,
+    AutoFlowModalComponent
   ],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+  styleUrl: './app.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent implements OnInit, OnDestroy {
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly socketService = inject(SocketService);
+  private readonly configService = inject(ConfigService);
+  private readonly directoriesService = inject(DirectoriesService);
   // Colunas da tabela
   displayedColumns: string[] = ['select', 'component', 'file', 'type', 'actions'];
   
@@ -301,10 +326,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
-  constructor(
-    private socketService: SocketService,
-    private configService: ConfigService
-  ) {}
+  constructor() {}
 
   ngOnInit(): void {
     this.setupSocketListeners();
@@ -314,7 +336,7 @@ export class AppComponent implements OnInit, OnDestroy {
     setTimeout(() => this.showSplash.set(false), 3000);
 
     // Chat actions: abrir arquivo
-    this.socketService.onChatAction().subscribe(action => {
+    this.socketService.onChatAction().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(action => {
       if (action.type === 'open_file') {
         const rel = (action.path || '').replace(/\\/g, '/');
         if (!rel) return;
@@ -337,30 +359,30 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private setupSocketListeners(): void {
     // Conexão
-    this.socketService.onConnection().subscribe(() => {
+    this.socketService.onConnection().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.isConnected.set(true);
       this.statusMessage.set('Conectado ao servidor');
       this.errorMessage.set('');
     });
 
-    this.socketService.onDisconnection().subscribe(() => {
+    this.socketService.onDisconnection().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.isConnected.set(false);
       this.statusMessage.set('Desconectado do servidor');
     });
 
     // Escaneamento
-    this.socketService.onScanStarted().subscribe(data => {
+    this.socketService.onScanStarted().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.isScanning.set(true);
       this.statusMessage.set(`Escaneando diretório: ${data.directoryPath}`);
       this.errorMessage.set('');
     });
 
-    this.socketService.onScanProgress().subscribe(progress => {
+    this.socketService.onScanProgress().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(progress => {
       this.scanProgress.set(progress);
       this.statusMessage.set(`Escaneando... ${progress.current}/${progress.total} - ${progress.currentFile}`);
     });
 
-    this.socketService.onScanCompleted().subscribe(data => {
+    this.socketService.onScanCompleted().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.isScanning.set(false);
       this.scanProgress.set(null);
       this.scannedComponents.set(data.result.components || []);
@@ -395,14 +417,14 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.socketService.onScanError().subscribe(data => {
+    this.socketService.onScanError().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.isScanning.set(false);
       this.scanProgress.set(null);
       this.errorMessage.set(`Erro no escaneamento: ${data.error}`);
     });
 
     // Conteúdo do arquivo
-    this.socketService.onFileContent().subscribe(data => {
+    this.socketService.onFileContent().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       // Não usamos mais modal; apenas cache para exibição inline
       const normalize = (p: string) => (p || '').replace(/\\/g, '/');
       const filePathNorm = normalize(data.filePath);
@@ -430,7 +452,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.statusMessage.set(`Conteúdo carregado: ${data.filePath}`);
     });
 
-    this.socketService.onFileContentError().subscribe(data => {
+    this.socketService.onFileContentError().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       // Se falhar ao carregar o arquivo, interrompe qualquer loading pendente
       this.isFixingTest.set(false);
       this.fixingTestFile.set('');
@@ -438,7 +460,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     // Geração de testes
-    this.socketService.onTestGenerationStarted().subscribe(data => {
+    this.socketService.onTestGenerationStarted().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.isGeneratingTests.set(true);
       // Reset progress to force waiting animation until first progress arrives
       this.testProgress.set(null);
@@ -456,12 +478,12 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.socketService.onTestGenerationProgress().subscribe(progress => {
+    this.socketService.onTestGenerationProgress().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(progress => {
       this.testProgress.set(progress);
       this.statusMessage.set(`Gerando testes... ${progress.current}/${progress.total} - ${progress.currentFile}`);
     });
 
-    this.socketService.onTestGenerated().subscribe(result => {
+    this.socketService.onTestGenerated().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(result => {
       try { console.log('[socket] test-generated', result); } catch {}
       // Adiciona timestamp ao resultado
       const resultWithTimestamp = {
@@ -501,7 +523,7 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.socketService.onTestGenerationCompleted().subscribe(data => {
+    this.socketService.onTestGenerationCompleted().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       try { console.log('[socket] test-generation-completed', data); } catch {}
       this.isGeneratingTests.set(false);
       this.testProgress.set(null);
@@ -509,14 +531,14 @@ export class AppComponent implements OnInit, OnDestroy {
       // Não alteramos a lista aqui para evitar recarregar; adicionamos apenas no evento por arquivo
     });
 
-    this.socketService.onTestGenerationError().subscribe(data => {
+    this.socketService.onTestGenerationError().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.isGeneratingTests.set(false);
       this.testProgress.set(null);
       this.errorMessage.set(`Erro na geração: ${data.error}`);
     });
 
     // Criação de arquivo de teste
-    this.socketService.onTestFileCreated().subscribe(data => {
+    this.socketService.onTestFileCreated().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       try { console.log('[socket] test-file-created', data); } catch {}
       this.isCreatingTest.set(false);
       if (data.success) {
@@ -548,13 +570,13 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.socketService.onTestFileError().subscribe(data => {
+    this.socketService.onTestFileError().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.isCreatingTest.set(false);
       this.errorMessage.set(`Erro ao criar arquivo de teste: ${data.error}`);
     });
 
     // Execução de testes
-    this.socketService.onTestExecutionStarted().subscribe(data => {
+    this.socketService.onTestExecutionStarted().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       
       this.isExecutingTest.set(true);
       this.statusMessage.set(`Iniciando execução do teste: ${data.filePath}`);
@@ -598,7 +620,7 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.socketService.onTestExecutionOutput().subscribe(data => {
+    this.socketService.onTestExecutionOutput().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       
       // Atualiza a saída do teste em tempo real
       this.testResults.update(results => {
@@ -636,7 +658,7 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.socketService.onTestExecutionCompleted().subscribe(data => {
+    this.socketService.onTestExecutionCompleted().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       
       this.isExecutingTest.set(false);
       this.statusMessage.set(`Execução concluída: ${data.filePath} - ${data.status === 'success' ? 'Sucesso' : 'Erro'}`);
@@ -717,7 +739,7 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.socketService.onTestExecutionError().subscribe(data => {
+    this.socketService.onTestExecutionError().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       
       this.isExecutingTest.set(false);
       this.errorMessage.set(`Erro na execução: ${data.error}`);
@@ -753,7 +775,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     // Execução de todos os testes
-    this.socketService.onAllTestsOutput().subscribe(data => {
+    this.socketService.onAllTestsOutput().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       
       this.allTestsOutput.update(output => output + data.output);
       
@@ -777,7 +799,7 @@ export class AppComponent implements OnInit, OnDestroy {
       setTimeout(() => this.scrollAllTestsToBottomIfNeeded(), 0);
     });
 
-    this.socketService.onAllTestsCompleted().subscribe(data => {
+    this.socketService.onAllTestsCompleted().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       
       this.isExecutingAllTests.set(false);
       this.statusMessage.set(`Execução de todos os testes concluída: ${data.success ? 'Sucesso' : 'Erro'}`);
@@ -804,7 +826,7 @@ export class AppComponent implements OnInit, OnDestroy {
       setTimeout(() => this.scrollAllTestsToBottomIfNeeded(), 0);
     });
 
-    this.socketService.onAllTestsError().subscribe(data => {
+    this.socketService.onAllTestsError().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       
       this.isExecutingAllTests.set(false);
       this.errorMessage.set(`Erro na execução de todos os testes: ${data.error}`);
@@ -832,7 +854,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     // Correção de erros de teste
-    this.socketService.onTestFixStarted().subscribe(data => {
+    this.socketService.onTestFixStarted().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       
       this.isFixingTest.set(true);
       this.fixingTestFile.set(data.filePath);
@@ -842,7 +864,7 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.socketService.onTestFixed().subscribe(data => {
+    this.socketService.onTestFixed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       
       this.isFixingTest.set(false);
       this.fixingTestFile.set('');
@@ -912,7 +934,7 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.socketService.onTestFixError().subscribe(data => {
+    this.socketService.onTestFixError().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       
       this.isFixingTest.set(false);
       this.fixingTestFile.set('');
@@ -1396,18 +1418,15 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private async loadRecentDirectories(): Promise<void> {
-    try {
-      const res = await fetch(`${environment.apiBaseUrl}/api/directories`);
-      if (res.ok) {
-        const data = await res.json();
+    this.directoriesService.list().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (data) => {
         if (Array.isArray(data?.directories)) {
           this.recentDirectories.set(data.directories);
-          // Tenta abrir automaticamente o último projeto
           this.tryAutoOpenLastDirectory(data.directories);
-          return;
         }
-      }
-    } catch {}
+      },
+      error: () => {}
+    });
   }
 
 
@@ -1415,20 +1434,14 @@ export class AppComponent implements OnInit, OnDestroy {
     if (!path) return;
     const trimmed = path.trim();
     if (!trimmed) return;
-    try {
-      const res = await fetch(`${environment.apiBaseUrl}/api/directories`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: trimmed })
-      });
-      if (res.ok) {
-        const data = await res.json();
+    this.directoriesService.add(trimmed).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (data) => {
         if (Array.isArray(data?.directories)) {
           this.recentDirectories.set(data.directories);
-          return;
         }
-      }
-    } catch {}
+      },
+      error: () => {}
+    });
   }
 
   selectRecentDirectory(path: string): void {
@@ -1437,20 +1450,14 @@ export class AppComponent implements OnInit, OnDestroy {
 
   async removeRecentDirectory(path: string, event?: Event): Promise<void> {
     if (event) event.stopPropagation();
-    try {
-      const res = await fetch(`${environment.apiBaseUrl}/api/directories`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path })
-      });
-      if (res.ok) {
-        const data = await res.json();
+    this.directoriesService.remove(path).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (data) => {
         if (Array.isArray(data?.directories)) {
           this.recentDirectories.set(data.directories);
-          return;
         }
-      }
-    } catch {}
+      },
+      error: () => {}
+    });
   }
 
   getFileName(filePath: string): string {

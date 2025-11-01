@@ -1,0 +1,29 @@
+<mat-tree [dataSource]="dataSource" [treeControl]="treeControl" class="project-tree">
+	<mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild" class="tree-folder-node">
+		<div class="tree-folder-content" matTreeNodePadding [matTreeNodePaddingIndent]="30">
+			<button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
+				<mat-icon>{{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}</mat-icon>
+			</button>
+			<span class="folder-name clickable" (click)="treeControl.toggle(node)">{{ node.name }}</span>
+		</div>
+		<div [class.tree-children]="true" *ngIf="treeControl.isExpanded(node)">
+			<ng-container matTreeNodeOutlet></ng-container>
+		</div>
+	</mat-nested-tree-node>
+
+	<mat-tree-node *matTreeNodeDef="let node" class="tree-file-node" matTreeNodePadding [matTreeNodePaddingIndent]="30">
+		<mat-checkbox *ngIf="selectionMode"
+			[checked]="selectedFiles.includes(node.path)"
+			(change)="toggleSelection.emit(node.path)"
+			[disabled]="!node.isFile || isSpecPath(node.path)"
+			title="{{ isSpecPath(node.path) ? 'Arquivos .spec.ts não são selecionáveis' : 'Selecionar arquivo' }}"
+		></mat-checkbox>
+		<mat-icon>{{ isSpecPath(node.path) ? 'assignment_turned_in' : 'description' }}</mat-icon>
+		<span class="file-name clickable" (click)="openNode.emit(node)" [ngClass]="{ 'is-new-spec': isSpecPath(node.path) && isNewSpec(node.path), 'selected': isPathSelected(node.path) }">
+			{{ node.name }}
+			<span *ngIf="isSpecPath(node.path) && isNewSpec(node.path)" class="new-label">Novo</span>
+		</span>
+	</mat-tree-node>
+</mat-tree>
+
+

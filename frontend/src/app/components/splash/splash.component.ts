@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Output, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -6,7 +6,8 @@ import { CommonModule } from '@angular/common';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './splash.component.html',
-  styleUrls: ['./splash.component.scss']
+  styleUrls: ['./splash.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SplashComponent {
   @Output() complete = new EventEmitter<void>();
@@ -15,6 +16,8 @@ export class SplashComponent {
   onAnimationEnd(): void {
     this.complete.emit();
   }
+
+  trackByIndex(index: number, _item?: unknown): number { return index; }
 }
 
 

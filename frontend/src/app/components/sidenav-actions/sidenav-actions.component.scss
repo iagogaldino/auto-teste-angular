@@ -1,0 +1,18 @@
+.sidenav-actions {
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 6px;
+	margin: 0 -6px 6px;
+	background: linear-gradient(180deg, rgba(11,11,16,0.98), rgba(11,11,16,0.9));
+	border-bottom: 1px solid rgba(255,255,255,0.08);
+	backdrop-filter: saturate(120%) blur(4px);
+
+	> button.mat-raised-button { margin-left: auto; }
+	> button.mat-icon-button { width: 32px; height: 32px; }
+}
+
+

@@ -12,7 +12,9 @@
     <div class="right">
       <div class="swirl">
         <!-- 36 particles, positioned via CSS using index variable -->
-        <span class="particle" *ngFor="let _ of [].constructor(36); let i = index" [style.--i]="i + 1"></span>
+        @for (_ of [].constructor(36); track trackByIndex($index, _); let i = $index) {
+          <span class="particle" [style.--i]="i + 1"></span>
+        }
       </div>
     </div>
   </div>

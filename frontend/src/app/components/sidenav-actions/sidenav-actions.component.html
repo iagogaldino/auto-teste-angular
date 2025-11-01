@@ -1,0 +1,23 @@
+<div class="sidenav-actions">
+	<button mat-icon-button (click)="toggleSelectionMode.emit()" [disabled]="!hasComponents" [color]="selectionMode ? 'warn' : undefined" title="Selecionar múltiplos">
+		<mat-icon>{{ selectionMode ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+	</button>
+	<button mat-icon-button (click)="selectAll.emit()" title="Selecionar todos">
+		<mat-icon>select_all</mat-icon>
+	</button>
+	<button mat-icon-button (click)="clearSelection.emit()" title="Limpar seleção">
+		<mat-icon>clear_all</mat-icon>
+	</button>
+	<button 
+		mat-raised-button 
+		color="primary" 
+		(click)="generate.emit()" 
+		[disabled]="selectedCount === 0 || isGenerating"
+		title="Gerar testes para os selecionados"
+	>
+		<mat-icon>{{ isGenerating ? 'refresh' : 'rocket_launch' }}</mat-icon>
+		Gerar Selecionados
+	</button>
+</div>
+
+

@@ -1,0 +1,104 @@
+<div class="test-details-modal" (click)="close.emit()">
+<div class="modal-content" (click)="$event.stopPropagation()">
+  <div class="modal-header">
+    <h3>Detalhes do Teste: {{ result!.filePath.split('/').pop() || result!.filePath }}</h3>
+    <button mat-icon-button (click)="close.emit()" class="close-modal">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+  <div class="modal-body">
+    <div *ngIf="result!.success" class="test-details-content">
+      <div class="explanation" *ngIf="result!.explanation">
+        <h4>📝 Explicação:</h4>
+        <p>{{ result!.explanation }}</p>
+      </div>
+
+      <div class="test-cases" *ngIf="(result!.testCases?.length || 0) > 0">
+        <h4>🧪 Casos de Teste:</h4>
+        <ul>
+          @for (testCase of result!.testCases; track trackByIndex($index, testCase); let i = $index) {
+            <li>{{ testCase }}</li>
+          }
+        </ul>
+      </div>
+
+      <div class="dependencies" *ngIf="(result!.dependencies?.length || 0) > 0">
+        <h4>📦 Dependências:</h4>
+        <ul>
+          @for (dep of result!.dependencies; track trackByIndex($index, dep); let i = $index) {
+            <li>{{ dep }}</li>
+          }
+        </ul>
+      </div>
+
+      <div class="test-code">
+        <div class="test-code-header">
+          <h4>💻 Código do Teste:</h4>
+          <div class="test-code-actions">
+            <button mat-raised-button color="primary" (click)="copy.emit(result!.testCode || '')" title="Copiar código">
+              <mat-icon>content_copy</mat-icon>
+              Copiar
+            </button>
+            <button mat-raised-button color="accent" (click)="createFile.emit(result!)" [disabled]="isCreating" title="Criar arquivo de teste no projeto">
+              <mat-icon>{{ isCreating ? 'hourglass_empty' : 'save' }}</mat-icon>
+              {{ isCreating ? 'Criando...' : 'Criar Teste' }}
+            </button>
+            <button mat-raised-button color="primary" (click)="execute.emit(result!)" [disabled]="isExecuting || !result!.success" title="Executar teste com Jest">
+              <mat-icon>{{ isExecuting ? 'hourglass_empty' : 'play_arrow' }}</mat-icon>
+              {{ isExecuting ? 'Executando...' : 'Executar Teste' }}
+            </button>
+          </div>
+        </div>
+        <div class="code-container">
+          <pre><code class="typescript">{{ result!.testCode }}</code></pre>
+        </div>
+
+        <div class="test-execution" *ngIf="result!.testExecution as te">
+          <div class="test-execution-header">
+            <h4>🧪 Execução do Teste:</h4>
+            <div class="execution-status">
+              <button *ngIf="te.status === 'error'" mat-raised-button color="warn" (click)="regenerateFromError.emit(result!)" [disabled]="isFixing || fixingFile === result!.filePath" title="Gerar novo teste corrigindo o erro de execução" class="regenerate-button">
+                <mat-icon>{{ isFixing && fixingFile === result!.filePath ? 'hourglass_empty' : 'autorenew' }}</mat-icon>
+                {{ isFixing && fixingFile === result!.filePath ? 'Corrigindo...' : 'Corrigir com IA' }}
+              </button>
+              <span class="status-badge" [class]="te.status">{{ te.status }}</span>
+            </div>
+          </div>
+          <div class="execution-output">
+            <pre class="output-content">{{ te.output }}</pre>
+          </div>
+        </div>
+      </div>
+    <div *ngIf="!result!.success">
+      <div class="result-error">
+        <div class="error-content">
+          <div class="error-header">
+            <mat-icon color="warn">error</mat-icon>
+            <h4>Detalhes do Erro</h4>
+          </div>
+          <div class="error-message-box">
+            <div class="error-label">Arquivo:</div>
+            <div class="error-value">{{ result!.filePath }}</div>
+          </div>
+          <div class="error-message-box" *ngIf="result!.timestamp">
+            <div class="error-label">Data/Hora:</div>
+            <div class="error-value">{{ result!.timestamp | date:'dd/MM/yyyy HH:mm:ss' }}</div>
+          </div>
+          <div class="error-message-box">
+            <div class="error-label">Mensagem de Erro:</div>
+            <div class="error-text">{{ result!.error }}</div>
+          </div>
+          <div class="error-actions">
+            <button mat-raised-button color="warn" (click)="regenerateFromError.emit(result!)" [disabled]="isFixing" title="Refazer teste">
+              <mat-icon>{{ isFixing ? 'hourglass_empty' : 'refresh' }}</mat-icon>
+              {{ isFixing ? 'Refazendo...' : 'Refazer Teste' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+

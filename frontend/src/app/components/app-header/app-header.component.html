@@ -1,0 +1,45 @@
+<mat-toolbar color="primary" class="app-header">
+	<mat-toolbar-row>
+		<div class="brand">
+			<img src="/assets/logo-stackspot-ai.svg" alt="Logo" class="app-logo" width="139" height="24" />
+			<span class="app-title">DelsucTest</span>
+		</div>
+		<span class="spacer"></span>
+		<button mat-icon-button (click)="toggleAiChat.emit()" title="Chat com IA">
+			<mat-icon>chat_bubble_outline</mat-icon>
+		</button>
+		<button mat-icon-button (click)="openConfig.emit()" title="Configurações" color="primary">
+			<mat-icon>settings</mat-icon>
+		</button>
+		<mat-chip-listbox>
+			<mat-chip [color]="connected ? 'accent' : 'warn'">
+				{{ connected ? 'Conectado' : 'Desconectado' }}
+			</mat-chip>
+		</mat-chip-listbox>
+	</mat-toolbar-row>
+	<mat-toolbar-row class="top-menu-row">
+		<div class="top-menu">
+			<button mat-raised-button color="primary" (click)="openProject.emit()">
+				<mat-icon>folder_open</mat-icon>
+				Abrir Projeto
+			</button>
+            <button mat-raised-button color="accent" (click)="runAllTests.emit()" [disabled]="isExecutingAll">
+                @if (isExecutingAll) { <ng-container><mat-icon>hourglass_empty</mat-icon></ng-container> } @else { <ng-container><mat-icon>play_arrow</mat-icon></ng-container> }
+                Executar Testes
+            </button>
+            <button 
+				mat-raised-button 
+				color="accent" 
+				(click)="openOrRunAutoFlow.emit()" 
+				[disabled]="autoFlowRunning ? false : (!hasSelection || isGeneratingTests || isExecutingAll)"
+				title="Gerar, executar e corrigir automaticamente com IA"
+			>
+                @if (autoFlowRunning) { <ng-container><mat-icon>hourglass_empty</mat-icon></ng-container> } @else { <ng-container><mat-icon>auto_awesome</mat-icon></ng-container> }
+                @if (autoFlowRunning) { Processando... } @else { Gerar com IA }
+			</button>
+			<span class="spacer"></span>
+		</div>
+	</mat-toolbar-row>
+</mat-toolbar>
+
+

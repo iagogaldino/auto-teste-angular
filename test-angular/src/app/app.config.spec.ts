@@ -1,41 +1,31 @@
-import {
-  ApplicationConfig,
-  provideBrowserGlobalErrorListeners,
-  provideZoneChangeDetection,
-  Provider,
-} from '@angular/core';
-import { provideRouter } from '@angular/router';
-import { routes } from './app.routes';
+import { TestBed } from '@angular/core/testing';
+import { ROUTES } from '@angular/router';
 import { appConfig } from './app.config';
-
-jest.mock('@angular/core', () => ({
-  provideBrowserGlobalErrorListeners: jest.fn(() => ({ provide: 'BrowserGlobalErrorListeners' })),
-  provideZoneChangeDetection: jest.fn(() => ({ provide: 'ZoneChangeDetection' })),
-  provideRouter: jest.fn(() => ({ provide: 'Router', useValue: {} })),
-}));
-
-jest.mock('./app.routes', () => ({
-  routes: [{ path: '', component: class DummyComponent {} }],
-}));
+import { routes } from './app.routes';
 
 describe('appConfig', () => {
-  it('should be a valid ApplicationConfig', () => {
-    expect(appConfig).toBeTruthy();
-    expect(appConfig.providers).toBeInstanceOf(Array);
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: appConfig.providers
+    });
   });
 
-  it('should call Angular provider functions correctly', () => {
-    expect(provideBrowserGlobalErrorListeners).toHaveBeenCalled();
-    expect(provideZoneChangeDetection).toHaveBeenCalledWith({ eventCoalescing: true });
-    expect(provideRouter).toHaveBeenCalledWith(routes);
+  it('should be an object with a providers array', () => {
+    expect(typeof appConfig).toBe('object');
+    expect(Array.isArray(appConfig.providers)).toBe(true);
+    expect(appConfig.providers.length).toBeGreaterThan(0);
   });
 
-  it('should include expected providers', () => {
-    // Faz cast para `any` porque o array pode conter EnvironmentProviders
-    const providerTokens = (appConfig.providers as any[]).map((p: any) => p.provide);
+  it('should register ROUTES provider with configured routes', () => {
+    const r = TestBed.inject(ROUTES);
+    const flatRoutes = Array.isArray(r) ? (r.flat ? r.flat(Infinity) : ([] as any[]).concat(...r)) : [];
+    expect(Array.isArray(flatRoutes)).toBe(true);
+    if (routes && Array.isArray(routes) && routes.length) {
+      expect(flatRoutes).toEqual(expect.arrayContaining(routes));
+    }
+  });
 
-    expect(providerTokens).toContain('BrowserGlobalErrorListeners');
-    expect(providerTokens).toContain('ZoneChangeDetection');
-    expect(providerTokens).toContain('Router');
+  it('should initialize TestBed without errors', () => {
+    expect(() => TestBed.inject(ROUTES)).not.toThrow();
   });
 });

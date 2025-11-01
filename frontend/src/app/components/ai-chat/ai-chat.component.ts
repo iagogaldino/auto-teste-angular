@@ -1,4 +1,5 @@
-import { Component, ElementRef, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, ViewChild, signal } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, ViewChild, signal, ChangeDetectionStrategy, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -14,9 +15,12 @@ type ChatMessage = { role: 'user' | 'assistant'; content: string; timestamp: Dat
   standalone: true,
   imports: [CommonModule, FormsModule, MatIconModule, MatButtonModule, MatFormFieldModule, MatInputModule],
   templateUrl: './ai-chat.component.html',
-  styleUrl: './ai-chat.component.scss'
+  styleUrl: './ai-chat.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AiChatComponent implements OnInit, OnChanges {
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly socketService = inject(SocketService);
   @Output() close = new EventEmitter<void>();
   @Input() directoryPath?: string;
 
@@ -29,7 +33,7 @@ export class AiChatComponent implements OnInit, OnChanges {
   chatTyping = signal<boolean>(false);
   private conversationId = '';
 
-  constructor(private socketService: SocketService) {}
+  constructor() {}
 
   ngOnInit(): void {
     // Conversation id persistente
@@ -40,14 +44,14 @@ export class AiChatComponent implements OnInit, OnChanges {
       if (!existing && typeof window !== 'undefined') window.localStorage.setItem(key, this.conversationId);
     } catch {}
 
-    this.socketService.onChatMessage().subscribe(msg => {
+    this.socketService.onChatMessage().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(msg => {
       if (msg.role === 'assistant') {
         this.chatMessages.update(list => [...list, { role: 'assistant', content: msg.content, timestamp: new Date() }]);
         this.scrollSoon();
       }
     });
 
-    this.socketService.onChatError().subscribe(err => {
+    this.socketService.onChatError().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(err => {
       this.chatMessages.update(list => [...list, { role: 'assistant', content: `Erro: ${err.error}`, timestamp: new Date() }]);
       this.scrollSoon();
     });
@@ -81,6 +85,10 @@ export class AiChatComponent implements OnInit, OnChanges {
   }
 
   private scrollSoon(): void { setTimeout(() => this.scrollChatToBottom(), 0); }
+
+  trackByMsg(index: number, msg: ChatMessage): number {
+    try { return msg.timestamp?.getTime?.() || index; } catch { return index; }
+  }
 }
 
 

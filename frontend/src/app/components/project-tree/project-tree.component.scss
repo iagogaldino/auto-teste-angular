@@ -1,0 +1,28 @@
+.project-tree {
+	.tree-file-node, .tree-folder-node {
+		.file-name,
+		.folder-name { font-size: 11px; }
+		mat-icon { font-size: 11px; width: 14px; height: 14px; line-height: 11px; }
+		button.mat-icon-button { width: 20px; height: 20px; padding: 0; line-height: 20px; min-width: 20px; min-height: 20px; }
+	}
+
+	.tree-file-node {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex-wrap: nowrap;
+
+		.file-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.tree-actions { flex: 0 0 auto; }
+	}
+}
+
+.tree-folder-content .arrow-icon { display: inline-block; width: 14px; height: 14px; line-height: 14px; text-align: center; font-weight: 700; font-size: 12px; }
+
+.project-tree .tree-file-node .file-name { font-weight: 400; cursor: pointer; }
+.project-tree .tree-file-node .file-name.selected { background: rgba(255,255,255,0.10); border-radius: 6px; padding: 4px 6px; }
+
+.project-tree .tree-file-node .file-name.is-new-spec { position: relative; }
+.project-tree .tree-file-node .file-name .new-label { display: inline-block; margin-left: 6px; padding: 0 6px; font-size: 11px; line-height: 18px; height: 18px; border-radius: 8px; background-color: #ff9800; color: #fff; vertical-align: middle; }
+
+
