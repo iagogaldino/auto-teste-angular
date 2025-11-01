@@ -85,6 +85,8 @@ export class TestGenerationSocketService {
         await this.handleCreateTestFile(socket, data);
       });
 
+      
+
       // Executar teste
       socket.on('execute-test', async (data: { filePath: string; testCode: string; originalFilePath: string }) => {
         await this.handleExecuteTest(socket, data);
@@ -322,6 +324,8 @@ export class TestGenerationSocketService {
       });
     }
   }
+
+  
 
   private async handleGenerateTests(socket: any, data: { files: string[]; options?: any }) {
     try {

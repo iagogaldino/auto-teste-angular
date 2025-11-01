@@ -25,6 +25,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatTreeModule } from '@angular/material/tree';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSidenavModule } from '@angular/material/sidenav';
+// (revert) remove MatMenu usage
 import { NestedTreeControl } from '@angular/cdk/tree';
 import { MatTreeNestedDataSource } from '@angular/material/tree';
 import { SplashComponent } from './components/splash/splash.component';
@@ -323,6 +324,9 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+  // Abre menu de contexto apenas no clique direito
+  
 
   // ===== Chat IA handlers =====
   toggleAiChat(): void { this.showAiChat.update(v => !v); }
@@ -917,6 +921,8 @@ export class AppComponent implements OnInit, OnDestroy {
         this.appendAutoFlowLog(`Erro ao corrigir teste com IA: ${data.error}`);
       }
     });
+
+    
   }
 
   // Métodos da interface
@@ -1187,6 +1193,8 @@ export class AppComponent implements OnInit, OnDestroy {
       });
     }
   }
+
+  
 
   executeSpecNode(node: { path: string }): void {
     const path = node.path;

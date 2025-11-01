@@ -81,7 +81,7 @@
             <mat-tree [dataSource]="treeDataSource" [treeControl]="treeControl" class="project-tree">
               <!-- Nó de diretório (pasta) -->
               <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild" class="tree-folder-node">
-                <div class="tree-folder-content" matTreeNodePadding [matTreeNodePaddingIndent]="8">
+                <div class="tree-folder-content" matTreeNodePadding [matTreeNodePaddingIndent]="30">
                   <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
                     <mat-icon>{{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}</mat-icon>
                   </button>
@@ -94,7 +94,6 @@
 
               <!-- Nó de arquivo -->
               <mat-tree-node *matTreeNodeDef="let node" class="tree-file-node" matTreeNodePadding [matTreeNodePaddingIndent]="1">
-                <button mat-icon-button disabled></button>
                 <mat-checkbox *ngIf="selectionMode()"
                   [checked]="selectedFiles().includes(node.path)"
                   (change)="toggleFileSelection(node.path)"
@@ -108,6 +107,8 @@
                 </span>
               </mat-tree-node>
             </mat-tree>
+            
+            
           </mat-card-content>
         </mat-card>
       </mat-sidenav>
