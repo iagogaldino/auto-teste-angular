@@ -93,7 +93,7 @@
               </mat-nested-tree-node>
 
               <!-- Nó de arquivo -->
-              <mat-tree-node *matTreeNodeDef="let node" class="tree-file-node" matTreeNodePadding [matTreeNodePaddingIndent]="1">
+              <mat-tree-node *matTreeNodeDef="let node" class="tree-file-node" matTreeNodePadding [matTreeNodePaddingIndent]="30">
                 <mat-checkbox *ngIf="selectionMode()"
                   [checked]="selectedFiles().includes(node.path)"
                   (change)="toggleFileSelection(node.path)"
