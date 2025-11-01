@@ -743,21 +743,27 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.isSpecPath(filePath)) {
       return;
     }
+    const normalize = (p: string) => (p || '').replace(/\\/g, '/');
+    const target = normalize(filePath);
     this.selectedFiles.update(files => {
-      if (files.includes(filePath)) {
-        return files.filter(f => f !== filePath);
+      const normalizedList = files.map(f => normalize(f));
+      if (normalizedList.includes(target)) {
+        return normalizedList.filter(f => f !== target);
       } else {
-        return [...files, filePath];
+        return [...normalizedList, target];
       }
     });
   }
 
   selectAllFiles(): void {
     // Seleciona apenas arquivos .ts que não são .spec.ts
+    const normalize = (p: string) => (p || '').replace(/\\/g, '/');
     const allFiles = this.scannedComponents()
-      .map(c => c.filePath)
+      .map(c => normalize(c.filePath))
       .filter(p => !this.isSpecPath(p));
     this.selectedFiles.set(allFiles);
+    // Garante que os checkboxes fiquem visíveis após selecionar tudo
+    this.selectionMode.set(true);
   }
 
   clearSelection(): void {
