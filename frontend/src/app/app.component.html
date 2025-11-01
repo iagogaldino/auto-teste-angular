@@ -9,6 +9,9 @@
         <span class="app-title">DelsucTest</span>
       </div>
       <span class="spacer"></span>
+      <button mat-icon-button (click)="toggleAiChat()" title="Chat com IA">
+        <mat-icon>{{ showAiChat() ? 'chat' : 'chat_bubble_outline' }}</mat-icon>
+      </button>
       <button mat-icon-button (click)="openConfigModal()" title="Configurações" color="primary">
         <mat-icon>settings</mat-icon>
       </button>
@@ -27,6 +30,16 @@
         <button mat-raised-button color="accent" (click)="runAllTestsFromMenu()" [disabled]="!directoryPath().trim() || isExecutingAllTests()">
           <mat-icon>{{ isExecutingAllTests() ? 'hourglass_empty' : 'play_arrow' }}</mat-icon>
           Executar Testes
+        </button>
+        <button 
+          mat-raised-button 
+          color="accent" 
+          (click)="openOrRunAiAutoFlow()" 
+          [disabled]="autoFlowRunning() ? false : (!selectedFiles().length || isGeneratingTests() || isExecutingAllTests())"
+          title="Gerar, executar e corrigir automaticamente com IA"
+        >
+          <mat-icon>{{ autoFlowRunning() ? 'hourglass_empty' : 'auto_awesome' }}</mat-icon>
+          {{ autoFlowRunning() ? 'Processando...' : 'Gerar com IA' }}
         </button>
         <span class="spacer"></span>
         
@@ -141,6 +154,11 @@
           </div>
         </div>
       </mat-sidenav-content>
+
+      <!-- AI Chat Sidenav (direita) - componente apartado -->
+      <mat-sidenav class="ai-chat-sidenav" position="end" mode="side" [opened]="showAiChat()">
+        <app-ai-chat (close)="toggleAiChat()" [directoryPath]="directoryPath()"></app-ai-chat>
+      </mat-sidenav>
     </mat-sidenav-container>
 
   </div>
@@ -528,6 +546,28 @@
           </div>
         </div>
         <div class="no-data" *ngIf="!allTestsExecution()">Preparando execução...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auto Flow (Gerar com IA) Modal -->
+  <div class="test-details-modal" *ngIf="showAutoFlowModal()" (click)="showAutoFlowModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Fluxo Gerar com IA</h3>
+        <button mat-icon-button (click)="toggleAutoFlowPause()" [title]="autoFlowPaused() ? 'Retomar' : 'Pausar'">
+          <mat-icon>{{ autoFlowPaused() ? 'play_arrow' : 'pause' }}</mat-icon>
+        </button>
+        <button mat-icon-button (click)="showAutoFlowModal.set(false)" class="close-modal">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="all-tests-execution">
+          <div class="execution-output running" #autoFlowOutputContainer>
+            <div class="output-content" [innerHTML]="formatAutoFlowLog(autoFlowLog())"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

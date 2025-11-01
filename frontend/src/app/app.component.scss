@@ -823,6 +823,16 @@
   word-break: break-word;
 }
 
+// Colorized auto-flow log
+.log-line { line-height: 1.45; }
+.log-time { color: #94a3b8; }
+.log-info { color: #cbd5e1; }
+.log-warn { color: #fbbf24; }
+.log-success { color: #22c55e; }
+.log-error { color: #ef4444; }
+.log-error-kw { color: #ef4444; font-weight: 700; }
+.log-success-kw { color: #22c55e; font-weight: 700; }
+
 // Subtle scrollbar for long logs
 .execution-output .output-content::-webkit-scrollbar {
   height: 8px;
@@ -1539,3 +1549,8 @@
 // Make the card fill the available height and scroll inside
 .tree-card { display: flex; flex-direction: column; flex: 1 1 auto; }
 .tree-card .mat-mdc-card-content { flex: 1 1 auto; overflow: auto; position: relative; min-height: 0; height: 100%; }
+
+// ===== AI Chat (sidenav à direita) =====
+/* estilos do chat movidos para o componente app/components/ai-chat */
+.ai-chat-sidenav { width: 380px; }
+@media (max-width: 1280px) { .ai-chat-sidenav { width: 320px; } }

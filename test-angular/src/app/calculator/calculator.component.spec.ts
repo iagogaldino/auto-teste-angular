@@ -1,14 +1,16 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { CalculatorComponent } from './calculator.component';
 
 describe('CalculatorComponent', () => {
+  let fixture: ComponentFixture<CalculatorComponent>;
   let component: CalculatorComponent;
 
-  beforeEach(() => {
-    TestBed.configureTestingModule({
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
       imports: [CalculatorComponent],
-    });
-    const fixture = TestBed.createComponent(CalculatorComponent);
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(CalculatorComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
@@ -17,11 +19,11 @@ describe('CalculatorComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should initialize result signal with 0', () => {
+  it('should have initial result as 0', () => {
     expect(component.result()).toBe(0);
   });
 
-  it('should set result to 20 when calculate() is called', () => {
+  it('should set result to 20 after calculate()', () => {
     component.calculate();
     expect(component.result()).toBe(20);
   });

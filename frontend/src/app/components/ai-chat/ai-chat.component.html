@@ -1,0 +1,31 @@
+<div class="ai-chat-root">
+  <div class="ai-chat-header">
+    <div class="title"><mat-icon>smart_toy</mat-icon> Chat com IA</div>
+    <div class="subtitle">Assistente para geração e correção de testes</div>
+    <button mat-icon-button (click)="onClose()" title="Fechar" class="close-btn">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+  <div class="ai-chat-messages" #aiChatMessages>
+    <div *ngFor="let msg of chatMessages()" class="ai-chat-message" [ngClass]="msg.role">
+      <div class="bubble">
+        <span *ngIf="msg.role === 'assistant'" class="avatar"><mat-icon>smart_toy</mat-icon></span>
+        <span class="content">{{ msg.content }}</span>
+      </div>
+      <div class="meta">{{ msg.timestamp | date:'HH:mm' }}</div>
+    </div>
+    <div class="ai-chat-typing" *ngIf="chatTyping()">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    </div>
+  </div>
+  <div class="ai-chat-input">
+    <mat-form-field appearance="fill" class="chat-input-field no-label">
+      <input matInput [ngModel]="chatInput()" (ngModelChange)="chatInput.set($event)" placeholder="Escreva uma mensagem..." />
+    </mat-form-field>
+    <button mat-icon-button color="primary" class="send-btn" (click)="sendChat()" [disabled]="!chatInput().trim()" title="Enviar">
+      <mat-icon>send</mat-icon>
+    </button>
+  </div>
+</div>
+
+

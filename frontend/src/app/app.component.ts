@@ -28,6 +28,7 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { NestedTreeControl } from '@angular/cdk/tree';
 import { MatTreeNestedDataSource } from '@angular/material/tree';
 import { SplashComponent } from './components/splash/splash.component';
+import { AiChatComponent } from './components/ai-chat/ai-chat.component';
 
 // PrismJS global (loaded via CDN in index.html)
 declare const Prism: any;
@@ -59,7 +60,8 @@ export interface TreeNode { name: string; path: string; children?: TreeNode[]; i
     MatTreeModule,
     MatProgressSpinnerModule,
     MatSidenavModule,
-    SplashComponent
+    SplashComponent,
+    AiChatComponent
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
@@ -209,17 +211,94 @@ export class AppComponent implements OnInit, OnDestroy {
   // Splash screen control
   showSplash = signal<boolean>(true);
 
+  // ===== Chat IA (sidenav à direita) =====
+  showAiChat = signal<boolean>(false);
+
   // Histórico de diretórios recentes
   recentDirectories = signal<string[]>([]);
 
   // Stepper reference
   @ViewChild(MatStepper) stepper?: MatStepper;
   @ViewChild('allTestsOutputContainer') allTestsOutputContainer?: ElementRef<HTMLDivElement>;
+  @ViewChild('autoFlowOutputContainer') autoFlowOutputContainer?: ElementRef<HTMLDivElement>;
 
   showAllTestsModal = signal<boolean>(false);
 
   // Forçar re-render do bloco de código quando novo conteúdo chega
   codeRenderKey = signal<number>(0);
+
+  // ===== Fluxo automático: gerar → executar → corrigir com IA =====
+  autoFlowRunning = signal<boolean>(false);
+  autoFlowTargets = signal<string[]>([]); // full paths dos arquivos alvo
+  autoFlowPendingExecutions = signal<number>(0);
+  showAutoFlowModal = signal<boolean>(false);
+  autoFlowLog = signal<string>('');
+  autoFlowPaused = signal<boolean>(false);
+  autoFlowPausedQueue = signal<string[]>([]); // filePaths aguardando ação quando pausado
+  private appendAutoFlowLog(message: string): void {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    const prefix = `[${hh}:${mm}:${ss}] `;
+    this.autoFlowLog.update(l => (l ? l + '\n' : '') + prefix + message);
+    setTimeout(() => this.scrollAutoFlowToBottom(), 0);
+    try { this.socketService.logAutoFlow(prefix + message); } catch {}
+  }
+
+  private appendAutoFlowRaw(chunk: string): void {
+    this.autoFlowLog.update(l => (l ? l : '') + chunk);
+    setTimeout(() => this.scrollAutoFlowToBottom(), 0);
+    // Envia apenas novas linhas “inteiras” para o backend (split por \n)
+    try {
+      const lines = (chunk || '').split(/\r?\n/).filter(Boolean);
+      for (const line of lines) {
+        this.socketService.logAutoFlow(line);
+      }
+    } catch {}
+  }
+
+  private extractFailCount(output: string): number | null {
+    if (!output) return null;
+    // Try Jest summary line: Tests: 1 failed, 2 passed, 3 total
+    const m = output.match(/Tests:\s*(?:.*?,\s*)?(\d+)\s*failed/i);
+    if (m) return +m[1];
+    // Fallback: count of lines starting with FAIL or ✖ in output
+    const failLines = output.split(/\r?\n/).filter(l => /^(FAIL|✖)/i.test(l)).length;
+    return failLines > 0 ? failLines : null;
+  }
+
+  toggleAutoFlowPause(): void {
+    const next = !this.autoFlowPaused();
+    this.autoFlowPaused.set(next);
+    if (next) {
+      this.appendAutoFlowLog('Fluxo pausado.');
+    } else {
+      this.appendAutoFlowLog('Fluxo retomado.');
+      this.processAutoFlowQueue();
+    }
+  }
+
+  private processAutoFlowQueue(): void {
+    const queue = [...this.autoFlowPausedQueue()];
+    if (queue.length === 0) return;
+    this.autoFlowPausedQueue.set([]);
+    // Para cada item, agenda a correção ou reexecução conforme apropriado
+    queue.forEach(path => {
+      const result = this.testResults().find(r => r.filePath === path);
+      if (!result) return;
+      // Se existe testExecution com erro -> corrigir; senão, se tem testCode -> executar
+      if (result.testExecution && result.testExecution.status === 'error') {
+        this.appendAutoFlowLog(`Retomado: corrigindo teste pendente: ${this.getFileName(path)}`);
+        this.autoFlowPendingExecutions.update(n => n + 1);
+        try { this.regenerateTestFromExecutionError(result); } catch {}
+      } else if (result.success && result.testCode) {
+        this.appendAutoFlowLog(`Retomado: executando teste pendente: ${this.getFileName(path)}`);
+        this.autoFlowPendingExecutions.update(n => n + 1);
+        try { this.executeTest(result); } catch {}
+      }
+    });
+  }
 
   constructor(
     private socketService: SocketService,
@@ -232,7 +311,21 @@ export class AppComponent implements OnInit, OnDestroy {
     this.loadRecentDirectories();
     // Auto-hide splash after animation time (fallback)
     setTimeout(() => this.showSplash.set(false), 3000);
+
+    // Chat actions: abrir arquivo
+    this.socketService.onChatAction().subscribe(action => {
+      if (action.type === 'open_file') {
+        const rel = (action.path || '').replace(/\\/g, '/');
+        if (!rel) return;
+        this.previewPath.set(rel);
+        const full = `${this.directoryPath()}/${rel}`;
+        this.socketService.getFileContent(full);
+      }
+    });
   }
+
+  // ===== Chat IA handlers =====
+  toggleAiChat(): void { this.showAiChat.update(v => !v); }
 
   ngOnDestroy(): void {
     this.socketService.disconnect();
@@ -353,6 +446,10 @@ export class AppComponent implements OnInit, OnDestroy {
       
       this.statusMessage.set(`Iniciando geração de testes para ${data.files.length} arquivos`);
       this.errorMessage.set('');
+      if (this.autoFlowRunning()) {
+        const normalize = (p: string) => (p || '').replace(/\\/g, '/');
+        (data.files || []).forEach(f => this.appendAutoFlowLog(`Gerando teste unitário para componente: ${this.getFileName(normalize(f))}`));
+      }
     });
 
     this.socketService.onTestGenerationProgress().subscribe(progress => {
@@ -383,6 +480,21 @@ export class AppComponent implements OnInit, OnDestroy {
       });
       this.statusMessage.set(`Teste gerado: ${result.filePath}`);
       // Não altera a árvore aqui; a inclusão ocorre no evento test-file-created
+
+      // Auto: ao gerar um teste do alvo, executa automaticamente
+      if (this.autoFlowRunning() && !this.autoFlowPaused()) {
+        const targets = this.autoFlowTargets();
+        const normalize = (p: string) => (p || '').replace(/\\/g, '/');
+        const isTarget = targets.some(t => normalize(t) === normalize(result.filePath));
+        if (isTarget) {
+          this.appendAutoFlowLog(`Teste gerado: ${this.getFileName(result.filePath)}`);
+          const current = this.testResults().find(r => r.filePath === result.filePath);
+          if (current) {
+            this.appendAutoFlowLog(`Executando teste: ${this.getFileName(result.filePath)}`);
+            try { this.executeTest(current); } catch {}
+          }
+        }
+      }
     });
 
     this.socketService.onTestGenerationCompleted().subscribe(data => {
@@ -472,6 +584,14 @@ export class AppComponent implements OnInit, OnDestroy {
         }
         return map;
       });
+
+      if (this.autoFlowRunning()) {
+        const normalize = (p: string) => (p || '').replace(/\\/g, '/');
+        const isTarget = this.autoFlowTargets().some(t => normalize(t) === normalize(data.originalFilePath));
+        if (isTarget) {
+          this.appendAutoFlowLog(`Execução iniciada: ${this.getFileName(data.originalFilePath)}`);
+        }
+      }
     });
 
     this.socketService.onTestExecutionOutput().subscribe(data => {
@@ -501,6 +621,15 @@ export class AppComponent implements OnInit, OnDestroy {
         }
         return map;
       });
+
+      // Stream execução detalhada para o modal do fluxo automático
+      if (this.autoFlowRunning()) {
+        const normalize = (p: string) => (p || '').replace(/\\/g, '/');
+        const isTarget = this.autoFlowTargets().some(t => normalize(t) === normalize(data.originalFilePath));
+        if (isTarget) {
+          this.appendAutoFlowRaw(data.output || '');
+        }
+      }
     });
 
     this.socketService.onTestExecutionCompleted().subscribe(data => {
@@ -536,6 +665,52 @@ export class AppComponent implements OnInit, OnDestroy {
         }
         return map;
       });
+
+      // Auto: após execução, se erro → corrigir com IA; contabiliza conclusão
+      if (this.autoFlowRunning()) {
+        const normalize = (p: string) => (p || '').replace(/\\/g, '/');
+        const isTarget = this.autoFlowTargets().some(t => normalize(t) === normalize(data.originalFilePath));
+        if (isTarget) {
+          if (data.status === 'error') {
+            this.appendAutoFlowLog(`O teste teve erros: ${this.getFileName(data.originalFilePath)}. Gerando correção com IA...`);
+            if (this.autoFlowPaused()) {
+              // Enfileira correção para quando retomar
+              const q = new Set(this.autoFlowPausedQueue());
+              q.add(data.originalFilePath);
+              this.autoFlowPausedQueue.set(Array.from(q));
+              this.appendAutoFlowLog('Fluxo pausado: correção pendente adicionada à fila.');
+            } else {
+              // Mantém o fluxo ativo: agenda nova execução (incrementa antes de decrementar abaixo)
+              this.autoFlowPendingExecutions.update(n => n + 1);
+              const result = this.testResults().find(r => r.filePath === data.originalFilePath);
+              if (result) {
+                try { this.regenerateTestFromExecutionError(result); } catch {}
+              }
+            }
+          } else {
+            this.appendAutoFlowLog(`Teste passou com sucesso: ${this.getFileName(data.originalFilePath)}`);
+          }
+          // Resumo com contagem de erros se disponível
+          const fails = this.extractFailCount(data.output || '');
+          if (fails !== null) {
+            if (fails > 0) {
+              this.appendAutoFlowLog(`Resumo: O teste teve ${fails} erro(s).`);
+            } else {
+              this.appendAutoFlowLog('Resumo: Nenhum erro encontrado.');
+            }
+          }
+          // Contabiliza execução concluída
+          const remaining = Math.max(0, this.autoFlowPendingExecutions() - 1);
+          this.autoFlowPendingExecutions.set(remaining);
+          if (remaining === 0 && !this.isFixingTest() && !this.autoFlowPaused() && this.autoFlowPausedQueue().length === 0) {
+            this.autoFlowRunning.set(false);
+            this.statusMessage.set('Fluxo automático concluído.');
+            this.appendAutoFlowLog('Fluxo automático concluído.');
+            // limpa alvos após pequeno atraso
+            setTimeout(() => this.autoFlowTargets.set([]), 500);
+          }
+        }
+      }
     });
 
     this.socketService.onTestExecutionError().subscribe(data => {
@@ -658,6 +833,9 @@ export class AppComponent implements OnInit, OnDestroy {
       this.isFixingTest.set(true);
       this.fixingTestFile.set(data.filePath);
       this.statusMessage.set(`🤖 IA iniciou correção do teste: ${data.componentName}`);
+      if (this.autoFlowRunning()) {
+        this.appendAutoFlowLog(`IA iniciou correção do teste: ${data.componentName}`);
+      }
     });
 
     this.socketService.onTestFixed().subscribe(data => {
@@ -665,6 +843,9 @@ export class AppComponent implements OnInit, OnDestroy {
       this.isFixingTest.set(false);
       this.fixingTestFile.set('');
       this.statusMessage.set(`✅ Teste corrigido com sucesso: ${data.componentName}`);
+      if (this.autoFlowRunning()) {
+        this.appendAutoFlowLog(`Teste corrigido com sucesso: ${data.componentName}`);
+      }
       
       // Atualiza o resultado do teste na lista sem afetar outros
       this.testResults.update(results => {
@@ -709,6 +890,22 @@ export class AppComponent implements OnInit, OnDestroy {
           return updatedResults;
         }
       });
+
+      // Se fluxo automático: reexecuta o teste corrigido para validar
+      if (this.autoFlowRunning()) {
+        const normalize = (p: string) => (p || '').replace(/\\/g, '/');
+        const isTarget = this.autoFlowTargets().some(t => normalize(t) === normalize(data.filePath));
+        if (isTarget) {
+          // Obtem o resultado atualizado da lista e executa
+          const current = this.testResults().find(r => r.filePath === data.filePath);
+          if (current && current.success && current.testCode) {
+            this.appendAutoFlowLog(`Executando novamente após correção: ${this.getFileName(data.filePath)}`);
+            // incrementa pendências para aguardar essa nova execução
+            this.autoFlowPendingExecutions.update(n => n + 1);
+            try { this.executeTest(current); } catch {}
+          }
+        }
+      }
     });
 
     this.socketService.onTestFixError().subscribe(data => {
@@ -716,6 +913,9 @@ export class AppComponent implements OnInit, OnDestroy {
       this.isFixingTest.set(false);
       this.fixingTestFile.set('');
       this.errorMessage.set(`Erro ao melhorar teste: ${data.error}`);
+      if (this.autoFlowRunning()) {
+        this.appendAutoFlowLog(`Erro ao corrigir teste com IA: ${data.error}`);
+      }
     });
   }
 
@@ -1492,6 +1692,43 @@ export class AppComponent implements OnInit, OnDestroy {
     this.socketService.generateTests([fullPath]);
   }
 
+  // ===== Fluxo automático disparado pelo botão "Gerar com IA" no menu superior =====
+  openOrRunAiAutoFlow(): void {
+    if (this.autoFlowRunning()) {
+      // Já em execução: apenas abre o modal de log
+      this.showAutoFlowModal.set(true);
+      setTimeout(() => this.scrollAutoFlowToBottom(), 0);
+      return;
+    }
+    this.runAiAutoFlow();
+  }
+
+  runAiAutoFlow(): void {
+    if (this.autoFlowRunning()) return;
+    if (!this.directoryPath().trim()) {
+      this.errorMessage.set('Selecione/abra um projeto antes de gerar testes');
+      return;
+    }
+    if (!this.hasSelectedFiles()) {
+      this.errorMessage.set('Selecione ao menos um arquivo para gerar o teste');
+      return;
+    }
+
+    const fullPaths = this.selectedFiles().map(file => `${this.directoryPath()}/${file}`);
+    this.autoFlowTargets.set(fullPaths);
+    this.autoFlowPendingExecutions.set(fullPaths.length);
+    this.autoFlowRunning.set(true);
+    this.statusMessage.set(`Fluxo automático iniciado para ${fullPaths.length} arquivo(s)`);
+    this.errorMessage.set('');
+    this.showAutoFlowModal.set(true);
+    this.autoFlowLog.set('');
+    this.appendAutoFlowLog('Iniciando fluxo: Gerar → Executar → Corrigir com IA');
+    setTimeout(() => this.scrollAutoFlowToBottom(), 0);
+
+    // Dispara a geração de testes; execuções ocorrerão quando cada teste for gerado
+    this.socketService.generateTests(fullPaths);
+  }
+
   
 
   // Métodos para status de execução de todos os testes
@@ -1528,6 +1765,40 @@ export class AppComponent implements OnInit, OnDestroy {
         }, 50);
       });
     }
+  }
+
+  private scrollAutoFlowToBottom(): void {
+    const container = this.autoFlowOutputContainer?.nativeElement;
+    if (!container) return;
+    requestAnimationFrame(() => {
+      container.scrollTop = container.scrollHeight;
+      setTimeout(() => { container.scrollTop = container.scrollHeight; }, 30);
+    });
+  }
+
+  // ===== Pretty formatting for Auto Flow log =====
+  formatAutoFlowLog(text: string): any {
+    if (!text) return '';
+    const escapeHtml = (s: string) => s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    const lines = text.split(/\r?\n/);
+    const formatted = lines.map(line => {
+      const raw = escapeHtml(line);
+      // realce timestamp [HH:MM:SS]
+      const withTime = raw.replace(/^(\[[0-9]{2}:[0-9]{2}:[0-9]{2}\])/, '<span class="log-time">$1</span>');
+      const lower = raw.toLowerCase();
+      let cls = 'log-info';
+      if (/erro|falhou|fail\b/.test(lower)) cls = 'log-error';
+      else if (/sucesso|passou|corrigido|conclu[ií]do/.test(lower)) cls = 'log-success';
+      else if (/warn|aviso/.test(lower)) cls = 'log-warn';
+      // marca linhas de jest (FAIL/PASS)
+      let content = withTime.replace(/\bFAIL\b/g, '<span class="log-error-kw">FAIL</span>')
+                            .replace(/\bPASS\b/g, '<span class="log-success-kw">PASS</span>');
+      return `<div class="log-line ${cls}">${content}</div>`;
+    }).join('');
+    return formatted;
   }
 
   // Métodos para modal de detalhes

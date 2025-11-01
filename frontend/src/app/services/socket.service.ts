@@ -82,6 +82,29 @@ export class SocketService {
     
   }
 
+  // ===== Chat IA =====
+  sendChatMessage(payload: { conversationId?: string; message: string; context?: { directoryPath?: string; previewPath?: string } }): void {
+    this.socket.emit('chat:message', payload);
+  }
+
+  onChatMessage(): Observable<{ conversationId: string; role: 'assistant' | 'user'; content: string }> {
+    return new Observable(observer => {
+      this.socket.on('chat:message', (data: { conversationId: string; role: 'assistant' | 'user'; content: string }) => observer.next(data));
+    });
+  }
+
+  onChatAction(): Observable<{ conversationId: string; type: 'open_file'; path: string }> {
+    return new Observable(observer => {
+      this.socket.on('chat:action', (data: { conversationId: string; type: 'open_file'; path: string }) => observer.next(data));
+    });
+  }
+
+  onChatError(): Observable<{ conversationId: string; error: string }> {
+    return new Observable(observer => {
+      this.socket.on('chat:error', (data: { conversationId: string; error: string }) => observer.next(data));
+    });
+  }
+
   // Observables para eventos do servidor
   onScanStarted(): Observable<{ directoryPath: string }> {
     return new Observable(observer => {
@@ -254,5 +277,12 @@ export class SocketService {
     return new Observable(observer => {
       this.socket.on('test-fix-error', (data: { error: string }) => observer.next(data));
     });
+  }
+
+  // ===== Custom: registrar logs do fluxo automático no backend =====
+  logAutoFlow(line: string): void {
+    try {
+      this.socket.emit('auto-flow-log', { line });
+    } catch {}
   }
 }

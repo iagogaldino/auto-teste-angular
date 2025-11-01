@@ -107,6 +107,53 @@ export class ChatGPTService {
   // prompts de geração movidos para './prompts'
 
   /**
+   * Chat geral do agente: retorna mensagem do assistente e, opcionalmente, uma ação estruturada
+   */
+  async agentChat(userMessage: string, context?: { directoryPath?: string; previewPath?: string }): Promise<{ content: string; action?: { type: 'open_file'; path: string } }> {
+    return this.agentChatWithHistory([{ role: 'user', content: userMessage }], context);
+  }
+
+  async agentChatWithHistory(history: { role: 'user' | 'assistant'; content: string }[], context?: { directoryPath?: string; previewPath?: string; filesIndex?: string }): Promise<{ content: string; action?: { type: 'open_file'; path: string } }> {
+    const system = [
+      'Você é um agente para desenvolvimento em Angular/TypeScript que auxilia em navegação de arquivos e testes.',
+      'Responda em português de forma clara. Quando for necessário executar algo na aplicação do usuário, gere também uma ação estruturada.',
+      'Formato da ação (se aplicável): JSON puro em uma linha contendo {"action":{"type":"open_file","path":"<caminho-relativo>"}}.',
+      'Somente os tipos suportados no momento: open_file. O caminho deve ser RELATIVO à raiz do projeto aberto (directoryPath).',
+      `Contexto: directoryPath=${context?.directoryPath || ''} previewPath=${context?.previewPath || ''}`,
+      context?.filesIndex ? `Índice de arquivos do projeto (amostragem):\n${context.filesIndex}` : ''
+    ].join('\n');
+
+    const messages: import('../types/chatgpt').ChatGPTMessage[] = [
+      { role: 'system', content: system },
+      ...history.map(m => ({ role: m.role, content: m.content }))
+    ];
+
+    const chatRequest: ChatGPTRequest = {
+      messages,
+      model: this.model,
+      temperature: 0.2,
+      max_tokens: 800
+    };
+
+    const response = await this.callChatGPT(chatRequest);
+    const content = response.choices[0]?.message?.content || '';
+
+    // Extrai ação JSON se presente
+    let action: { type: 'open_file'; path: string } | undefined;
+    try {
+      const jsonMatch = content.match(/\{\s*"action"[\s\S]*\}\s*$/m);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed && parsed.action && parsed.action.type === 'open_file' && typeof parsed.action.path === 'string') {
+          action = { type: 'open_file', path: String(parsed.action.path) };
+        }
+      }
+    } catch {}
+
+    return { content, action };
+  }
+
+  /**
    * Faz o parse da resposta do ChatGPT para UnitTestResponse
    */
   private async parseUnitTestResponse(response: ChatGPTResponse): Promise<UnitTestResponse> {

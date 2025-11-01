@@ -6,12 +6,47 @@ import { SocketEvents, ScanProgressData, TestGenerationProgress, TestGenerationR
 import { UnitTestRequest } from '../types/chatgpt';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
+import { logger } from './logger';
 
 export class TestGenerationSocketService {
   private io: SocketIOServer;
   private chatGPTService: ChatGPTService | null = null;
   private angularScanner: AngularComponentScanner;
   private jestExecutionService: JestExecutionService;
+  private chatHistories: Map<string, { role: 'user' | 'assistant'; content: string }[]> = new Map();
+
+  // Lista arquivos do projeto (relativos ao directoryPath)
+  private listProjectFiles(rootDir: string, opts?: { exts?: string[]; maxDepth?: number; maxResults?: number }): string[] {
+    const exts = (opts?.exts || ['.ts', '.js', '.scss', '.html', '.json']).map(e => e.toLowerCase());
+    const maxDepth = opts?.maxDepth ?? 12;
+    const maxResults = opts?.maxResults ?? 5000;
+    const results: string[] = [];
+    const visit = (dir: string, depth: number) => {
+      if (depth > maxDepth || results.length >= maxResults) return;
+      let entries: fs.Dirent[] = [];
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      for (const ent of entries) {
+        if (results.length >= maxResults) break;
+        const full = path.join(dir, ent.name);
+        const rel = full.replace(/\\/g, '/');
+        if (ent.isDirectory()) {
+          if (/node_modules|dist|coverage|\.git|\.angular|\.cache/i.test(ent.name)) continue;
+          visit(full, depth + 1);
+        } else if (ent.isFile()) {
+          const lower = ent.name.toLowerCase();
+          if (exts.some(ext => lower.endsWith(ext))) {
+            results.push(full.replace(/\\/g, '/'));
+          }
+        }
+      }
+    };
+    visit(rootDir, 0);
+    // converter para relativo a rootDir
+    const normRoot = rootDir.replace(/\\/g, '/').replace(/\/+$/, '');
+    return results.map(f => f.startsWith(normRoot) ? f.slice(normRoot.length).replace(/^\/+/, '') : f);
+  }
 
   constructor(io: SocketIOServer) {
     this.io = io;
@@ -69,6 +104,182 @@ export class TestGenerationSocketService {
         filePath: string; 
       }) => {
         await this.handleFixTestError(socket, data);
+      });
+
+      // Registrar logs do fluxo automático enviados pelo frontend
+      socket.on('auto-flow-log', async (data: { line: string }) => {
+        try {
+          const logsDir = path.join(process.cwd(), 'logs');
+          if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
+          const day = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+          const file = path.join(logsDir, `auto-flow-${day}.txt`);
+          const content = `[${new Date().toISOString()}] ${String(data?.line || '').replace(/\r?\n/g, ' ')}\n`;
+          fs.appendFileSync(file, content, 'utf8');
+        } catch (e) {
+          try {
+            const file = path.join(process.cwd(), 'logs', 'app.txt');
+            fs.appendFileSync(file, `[${new Date().toISOString()}] auto-flow-log-error ${(e instanceof Error ? e.message : 'unknown')}\n`, 'utf8');
+          } catch {}
+        }
+      });
+
+      // Chat IA: recebe mensagem e responde com texto e possíveis ações (via provedor de IA)
+      socket.on('chat:message', async (data: { conversationId?: string; message: string; context?: { directoryPath?: string; previewPath?: string } }) => {
+        try {
+          const conversationId = (data?.conversationId && String(data.conversationId)) || socket.id;
+          const userMessage = (data?.message || '').trim();
+          const directoryPath = (data?.context?.directoryPath || '').replace(/\\/g, '/');
+
+          if (!userMessage) {
+            socket.emit('chat:error', { conversationId, error: 'Mensagem vazia' });
+            return;
+          }
+
+          // Função de log de conversa
+          const appendChatLog = (role: 'user' | 'assistant' | 'system', content: string) => {
+            try {
+              const logsDir = path.join(process.cwd(), 'logs');
+              const chatDir = path.join(logsDir, 'chat');
+              if (!fs.existsSync(chatDir)) fs.mkdirSync(chatDir, { recursive: true });
+              const day = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+              const file = path.join(chatDir, `${day}.txt`);
+              const line = `${new Date().toISOString()} [${conversationId}] ${role.toUpperCase()}: ${content.replace(/\r?\n/g, ' ')}`;
+              fs.appendFileSync(file, line + '\n', 'utf8');
+            } catch (e) {
+              logger.warn('chat_log_fail', { msg: e instanceof Error ? e.message : 'append_fail' });
+            }
+          };
+
+          appendChatLog('user', userMessage);
+
+          // 1) Atualiza histórico da conversa (mantém últimas 20 mensagens)
+          const hist = this.chatHistories.get(conversationId) || [];
+          hist.push({ role: 'user', content: userMessage });
+          while (hist.length > 20) hist.shift();
+          this.chatHistories.set(conversationId, hist);
+
+          // 2) Chama IA para responder e, opcionalmente, descrever uma ação (com histórico)
+          let aiContent = '';
+          let aiAction: { type: 'open_file'; path: string } | undefined;
+          try {
+            // Monta um índice de arquivos do projeto para a IA decidir qual abrir
+            let filesIndex = '';
+            if (directoryPath) {
+              const files = this.listProjectFiles(directoryPath, { maxDepth: 8, maxResults: 1500 });
+              // prioriza src/ e arquivos ts/html/scss, limita a 400 linhas
+              const prioritized = [...files].sort((a, b) => {
+                const sa = (a.includes('src/') ? 0 : 1) + (a.endsWith('.ts') ? 0 : a.endsWith('.html') || a.endsWith('.scss') ? 0.1 : 0.2);
+                const sb = (b.includes('src/') ? 0 : 1) + (b.endsWith('.ts') ? 0 : b.endsWith('.html') || b.endsWith('.scss') ? 0.1 : 0.2);
+                return sa - sb;
+              }).slice(0, 400);
+              filesIndex = prioritized.join('\n');
+            }
+
+            const ai = await this.getChatGPTService().agentChatWithHistory(hist, { directoryPath, previewPath: data?.context?.previewPath, filesIndex });
+            aiContent = ai.content || '';
+            aiAction = ai.action;
+          } catch (e) {
+            aiContent = 'Não foi possível contatar o provedor de IA no momento.';
+          }
+
+          // 3) Se IA não retornou ação mas parece um pedido de abrir arquivo, fazemos fallback heurístico
+          const lower = userMessage.toLowerCase();
+          const wantsOpen = /(\babr[ei]\b|\babrir\b|\bopen\b)/.test(lower);
+          const normalize = (p: string) => (p || '').replace(/\\/g, '/').replace(/^\/+/, '').trim();
+          let safeRel = normalize(aiAction?.path || '');
+          let isSafe = !!safeRel && !safeRel.includes('..');
+          if (!aiAction && wantsOpen) {
+            // tentar extrair do texto para fallback
+            let extractedPath = '';
+            const codeMatch = userMessage.match(/`([^`]+)`/);
+            if (codeMatch && codeMatch[1]) extractedPath = codeMatch[1];
+            const fileNameMatch = userMessage.match(/([\w\-\.]+\.(?:ts|js|scss|html|json))/i);
+            if (!extractedPath && fileNameMatch) extractedPath = fileNameMatch[1];
+            safeRel = normalize(extractedPath);
+            isSafe = !!safeRel && !safeRel.includes('..');
+          }
+
+          // 4) Se ainda não há caminho relativo, tentamos localizar por nome no projeto
+          if (wantsOpen && (!isSafe || !safeRel.includes('/')) && directoryPath && !safeRel.includes('..')) {
+            const targetName = safeRel || userMessage.replace(/\s+/g, ' ').trim();
+            const fileNameMatch = targetName.match(/([\w\-\.]+\.(?:ts|js|scss|html|json))/i);
+            const fileName = fileNameMatch ? fileNameMatch[1] : '';
+            if (fileName) {
+              const matches: string[] = [];
+              // busca limitada em profundidade para evitar travar
+              const maxResults = 20;
+              const maxDepth = 7;
+              const visit = (dir: string, depth: number) => {
+                if (depth > maxDepth || matches.length >= maxResults) return;
+                let entries: fs.Dirent[] = [];
+                try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+                for (const ent of entries) {
+                  const full = join(dir, ent.name);
+                  if (ent.isDirectory()) {
+                    // pular node_modules e dist
+                    if (/node_modules|dist|coverage|\.git/.test(ent.name)) continue;
+                    visit(full, depth + 1);
+                  } else if (ent.isFile()) {
+                    if (ent.name.toLowerCase() === fileName.toLowerCase()) {
+                      matches.push(full.replace(/\\/g, '/'));
+                      if (matches.length >= maxResults) break;
+                    }
+                  }
+                }
+              };
+              visit(directoryPath, 0);
+              if (matches.length > 0) {
+                // escolha simples: preferir caminhos dentro de src/ primeiro, depois o mais curto
+                const preferred = [...matches].sort((a, b) => {
+                  const aScore = (a.includes('/src/') ? 0 : 1) + a.split('/').length / 1000;
+                  const bScore = (b.includes('/src/') ? 0 : 1) + b.split('/').length / 1000;
+                  return aScore - bScore;
+                })[0];
+                // converter para relativo ao directoryPath
+                if (preferred.startsWith(directoryPath)) {
+                  safeRel = preferred.slice(directoryPath.length).replace(/^\/+/, '');
+                  isSafe = true;
+                }
+              }
+            }
+          }
+
+          const assistantMsg = aiContent || (wantsOpen && isSafe
+            ? `Ok! Vou abrir o arquivo ${safeRel}.`
+            : (wantsOpen ? 'Não encontrei o arquivo solicitado. Informe um caminho relativo ou o nome exato do arquivo.' : 'Posso abrir arquivos, gerar e corrigir testes. Diga "abrir <caminho-relativo>".'));
+
+          socket.emit('chat:message', { conversationId, role: 'assistant', content: assistantMsg });
+          hist.push({ role: 'assistant', content: assistantMsg });
+          while (hist.length > 20) hist.shift();
+          this.chatHistories.set(conversationId, hist);
+          appendChatLog('assistant', assistantMsg);
+
+          if ((aiAction && aiAction.type === 'open_file' && isSafe) || (wantsOpen && isSafe)) {
+            // opcional: validar que o arquivo existe sob o directoryPath se fornecido
+            try {
+              if (directoryPath) {
+                const candidate = join(directoryPath, safeRel);
+                if (!existsSync(candidate)) {
+                  // ainda assim emitir ação; frontend pode tentar ler e falhar com feedback
+                }
+              }
+            } catch {}
+            socket.emit('chat:action', { conversationId, type: 'open_file', path: safeRel });
+            appendChatLog('system', `ACTION open_file path=${safeRel}`);
+          }
+        } catch (err) {
+          const conversationId = data?.conversationId || socket.id;
+          socket.emit('chat:error', { conversationId, error: err instanceof Error ? err.message : 'Erro no chat' });
+          try {
+            const logsDir = path.join(process.cwd(), 'logs');
+            const chatDir = path.join(logsDir, 'chat');
+            if (!fs.existsSync(chatDir)) fs.mkdirSync(chatDir, { recursive: true });
+            const day = new Date().toISOString().slice(0, 10);
+            const file = path.join(chatDir, `${day}.txt`);
+            const line = `${new Date().toISOString()} [${conversationId}] ERROR: ${err instanceof Error ? err.message : 'Erro no chat'}`;
+            fs.appendFileSync(file, line + '\n', 'utf8');
+          } catch {}
+        }
       });
 
       socket.on('disconnect', () => {
@@ -416,14 +627,18 @@ export class TestGenerationSocketService {
       const fs = await import('fs');
       const path = await import('path');
       
-      if (!fs.existsSync(filePath)) {
-        
-        const dir = path.dirname(filePath);
-        if (!fs.existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true });
-        }
-        fs.writeFileSync(filePath, testCode, 'utf8');
-        
+      // Sempre garante que o conteúdo mais recente esteja no disco quando fornecido
+      const dir = path.dirname(filePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      if (typeof testCode === 'string' && testCode.trim().length > 0) {
+        try {
+          fs.writeFileSync(filePath, testCode, 'utf8');
+        } catch {}
+      } else if (!fs.existsSync(filePath)) {
+        // Se não há testCode e o arquivo ainda não existe, cria vazio para evitar falha
+        fs.writeFileSync(filePath, '', 'utf8');
       }
       
       // Configurar listeners para saída em tempo real

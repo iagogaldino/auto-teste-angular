@@ -31,6 +31,21 @@ Arquivo: `frontend/src/app/services/config.service.ts`
 
 Uso principal no frontend: `AppComponent.loadConfig`, `AppComponent.saveConfig`, `AppComponent.applyConfig`.
 
+### HTTP (Diretórios Recentes)
+Arquivo: `frontend/src/app/app.component.ts`
+
+- `GET /api/directories`
+  - Objetivo: obter a lista de diretórios recentes utilizados no frontend.
+  - Uso: carregado em `loadRecentDirectories()` durante o `ngOnInit` para tentar reabrir o último projeto.
+
+- `POST /api/directories` (body: `{ path: string }`)
+  - Objetivo: adicionar um diretório ao histórico de recentes após um escaneamento bem-sucedido.
+  - Uso: `addRecentDirectory(path)`.
+
+- `DELETE /api/directories` (body: `{ path: string }`)
+  - Objetivo: remover um diretório do histórico.
+  - Uso: `removeRecentDirectory(path)`.
+
 ## WebSocket (SocketService)
 Arquivo: `frontend/src/app/services/socket.service.ts`
 
@@ -123,8 +138,13 @@ Arquivo: `frontend/src/app/app.component.ts`
 - Criação de arquivo de teste: `createTestFile(...)` → `socketService.createTestFile(...)`.
 - Execução de testes: `runSingleTest(...)` → `socketService.executeTest(...)`.
 - Execução de todos os testes: `runAllTests()` → `socketService.executeAllTests(...)`.
-- Correção por IA: `openFixTestDialog(...)`/`confirmFixTestWithExistingSpec(...)`/`sendToFixAI(...)` → `socketService.fixTestError(...)`.
 - Configurações: `loadConfig()`/`saveConfig()`/`applyConfig()` → `configService.getConfig`/`saveConfig`/`applyConfig`.
+
+Atual (Correção por IA):
+- `fixTestError(result)` → abre diálogo e define o prompt baseado no resultado selecionado.
+- `processCustomPrompt()` → envia dados ao backend via `socketService.fixTestError(...)`.
+- `regenerateTestFromExecutionError(result)` → usa o log de execução com erro para solicitar correção via IA.
+- `fixCurrentSpecFromLog()` → atalho no painel de log para acionar `regenerateTestFromExecutionError(...)`.
 
 ### Ajuste rápido pelo Log de Execução (novo)
 - Local: painel de log ao visualizar um arquivo `*.spec.ts` em `app.component.html`.

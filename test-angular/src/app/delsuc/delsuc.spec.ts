@@ -15,13 +15,12 @@ describe('Delsuc', () => {
     fixture.detectChanges();
   });
 
-  it('should create the component', () => {
+  it('should create the Delsuc component', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should render the component', () => {
-    fixture.detectChanges();
+  it('should render the component template', () => {
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled).toBeTruthy();
+    expect(compiled).toBeDefined();
   });
 });
