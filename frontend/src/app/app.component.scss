@@ -1497,3 +1497,45 @@
 
 // Reduce grid gap to minimize empty areas
 .code-log-grid { gap: 6px; }
+
+// --- Overrides to ensure full-height sidenav and sticky actions ---
+// Keep actions aligned and visible while scrolling the file list
+.sidenav-actions {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px;
+  margin: 0 -6px 6px; // keep full-bleed background
+  background: linear-gradient(180deg, rgba(11,11,16,0.98), rgba(11,11,16,0.9));
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: saturate(120%) blur(4px);
+
+  > button.mat-raised-button { margin-left: auto; }
+  > button.mat-icon-button { width: 32px; height: 32px; }
+}
+
+// Force the sidenav column to occupy full height even without content
+.app-sidenav {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden; // scrolling happens inside card content
+  min-height: 0; // permite que filhos flex encolham e ativem rolagem
+}
+
+// Angular Material coloca um container interno que controla a rolagem.
+// Garantimos que ele também ocupe 100% e delegue a rolagem para o conteúdo do card.
+.app-sidenav .mat-drawer-inner-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  min-height: 0;
+}
+
+// Make the card fill the available height and scroll inside
+.tree-card { display: flex; flex-direction: column; flex: 1 1 auto; }
+.tree-card .mat-mdc-card-content { flex: 1 1 auto; overflow: auto; position: relative; min-height: 0; height: 100%; }
