@@ -4,7 +4,7 @@ import { ChatGPTService } from './chatgptService';
 import { JestExecutionService } from './jestExecutionService';
 import { SocketEvents, ScanProgressData, TestGenerationProgress, TestGenerationResult } from '../types/socketEvents';
 import { UnitTestRequest } from '../types/chatgpt';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
 export class TestGenerationSocketService {
@@ -137,9 +137,9 @@ export class TestGenerationSocketService {
           // Ler conteúdo do arquivo
           const fileContent = readFileSync(filePath, 'utf-8');
           
-          // Determinar linguagem e framework baseado no arquivo
+          // Determinar linguagem e framework baseado no arquivo e no projeto
           const language = this.detectLanguage(filePath);
-          const framework = this.detectFramework(filePath, fileContent);
+          const framework = this.detectProjectTestFramework(filePath) || this.detectFramework(filePath, fileContent);
 
           // Criar requisição para ChatGPT
           const unitTestRequest: UnitTestRequest = {
@@ -270,6 +270,81 @@ export class TestGenerationSocketService {
     if (filePath.endsWith('.java')) return 'java';
     if (filePath.endsWith('.cs')) return 'csharp';
     return 'typescript'; // padrão
+  }
+
+  /**
+   * Detecta o framework de testes do projeto (Jest ou Jasmine/Karma)
+   * subindo diretórios a partir do arquivo até encontrar um package.json
+   */
+  private detectProjectTestFramework(filePath: string): 'jest' | 'jasmine' | undefined {
+    try {
+      const path = require('path');
+      const fs = require('fs');
+
+      const findProjectRoot = (startPath: string): string | undefined => {
+        let current = path.dirname(startPath);
+        const { root } = path.parse(current);
+        while (true) {
+          const pkgPath = path.join(current, 'package.json');
+          if (fs.existsSync(pkgPath)) return current;
+          if (current === root) break;
+          current = path.dirname(current);
+        }
+        return undefined;
+      };
+
+      const projectRoot = findProjectRoot(filePath);
+      if (!projectRoot) return undefined;
+
+      const pkgJsonPath = path.join(projectRoot, 'package.json');
+      const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8')) as any;
+
+      const hasDep = (name: string) => {
+        const d = pkg.dependencies || {};
+        const dd = pkg.devDependencies || {};
+        return Boolean(d[name] || dd[name]);
+      };
+
+      // Heurísticas de Jest
+      const jestConfigFiles = [
+        'jest.config.js',
+        'jest.config.ts',
+        'jest.preset.js',
+        'jest.preset.ts',
+      ].some((f) => fs.existsSync(path.join(projectRoot, f)));
+      if (hasDep('jest') || hasDep('ts-jest') || hasDep('jest-preset-angular') || jestConfigFiles) {
+        return 'jest';
+      }
+
+      // Heurísticas de Jasmine/Karma (Angular CLI padrão)
+      const karmaFiles = [
+        'karma.conf.js',
+        'karma.conf.ts',
+      ].some((f) => fs.existsSync(path.join(projectRoot, f)));
+      const hasAngularKarmaBuilder = (() => {
+        try {
+          const angularJsonPath = path.join(projectRoot, 'angular.json');
+          if (!fs.existsSync(angularJsonPath)) return false;
+          const angular = JSON.parse(fs.readFileSync(angularJsonPath, 'utf8')) as any;
+          const projects = angular.projects || {};
+          return Object.values(projects).some((p: any) => {
+            const testCfg = p?.architect?.test || p?.targets?.test;
+            const builder = testCfg?.builder || testCfg?.executor;
+            return typeof builder === 'string' && builder.includes('build-angular:karma');
+          });
+        } catch {
+          return false;
+        }
+      })();
+
+      if (hasDep('jasmine-core') || hasDep('karma') || karmaFiles || hasAngularKarmaBuilder) {
+        return 'jasmine';
+      }
+
+      return undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   private detectFramework(filePath: string, content: string): string {
@@ -550,6 +625,61 @@ export class TestGenerationSocketService {
           setupInstructions: fixedTest.setupInstructions
         }
       });
+
+      // Também persistir automaticamente o arquivo .spec.ts espelhando a estrutura em test-angular
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+
+        // Raiz do repositório e projeto de testes
+        const repoRoot = path.resolve(__dirname, '../../..');
+        const testProjectRoot = path.join(repoRoot, 'test-angular');
+
+        // Extrair caminho relativo dentro de src/app do arquivo original
+        const match = filePath.match(/[\\\/]src[\\\/]app[\\\/](.*)/);
+        const relWithinApp = match ? match[1] : path.basename(filePath);
+
+        const originalDirWithinApp = path.dirname(relWithinApp);
+        const originalBaseWithExt = path.basename(relWithinApp);
+        const originalBase = originalBaseWithExt.replace(/\.[^.]+$/, '');
+
+        // Diretório alvo dentro do test-angular espelhando a estrutura
+        const targetDir = path.join(testProjectRoot, 'src', 'app', originalDirWithinApp);
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+
+        const specFileName = originalBaseWithExt.endsWith('.spec.ts')
+          ? originalBaseWithExt
+          : originalBaseWithExt.replace(/\.ts$/, '.spec.ts');
+        const specFilePath = path.join(targetDir, specFileName);
+
+        // Ajustar import do componente para um import local no mesmo diretório
+        let codeToWrite = (fixedTest.testCode || '').trim();
+        const sameDirImport = `./${originalBase}`;
+        codeToWrite = codeToWrite.replace(
+          new RegExp("from\\s+['\"]\\./[^'\"]+['\"]"),
+          `from '${sameDirImport}'`
+        );
+
+        fs.writeFileSync(specFilePath, codeToWrite, 'utf8');
+
+        const fileName = path.basename(specFilePath);
+        const directory = path.dirname(specFilePath);
+
+        socket.emit('test-file-created', {
+          filePath: specFilePath,
+          fileName,
+          directory,
+          content: codeToWrite,
+          success: true
+        });
+      } catch (persistErr) {
+        socket.emit('test-file-error', {
+          filePath,
+          error: persistErr instanceof Error ? persistErr.message : 'Erro ao salvar teste corrigido'
+        });
+      }
 
       
 

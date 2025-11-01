@@ -1,44 +1,41 @@
-import appConfig from './app.config';
+import {
+  ApplicationConfig,
+  provideBrowserGlobalErrorListeners,
+  provideZoneChangeDetection,
+  Provider,
+} from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { routes } from './app.routes';
+import { appConfig } from './app.config';
+
+jest.mock('@angular/core', () => ({
+  provideBrowserGlobalErrorListeners: jest.fn(() => ({ provide: 'BrowserGlobalErrorListeners' })),
+  provideZoneChangeDetection: jest.fn(() => ({ provide: 'ZoneChangeDetection' })),
+  provideRouter: jest.fn(() => ({ provide: 'Router', useValue: {} })),
+}));
+
+jest.mock('./app.routes', () => ({
+  routes: [{ path: '', component: class DummyComponent {} }],
+}));
 
 describe('appConfig', () => {
-  it('should be defined', () => {
-    expect(appConfig).toBeDefined();
+  it('should be a valid ApplicationConfig', () => {
+    expect(appConfig).toBeTruthy();
+    expect(appConfig.providers).toBeInstanceOf(Array);
   });
 
-  it('should have a providers array', () => {
-    expect(appConfig.providers).toBeDefined();
-    expect(Array.isArray(appConfig.providers)).toBeTrue();
+  it('should call Angular provider functions correctly', () => {
+    expect(provideBrowserGlobalErrorListeners).toHaveBeenCalled();
+    expect(provideZoneChangeDetection).toHaveBeenCalledWith({ eventCoalescing: true });
+    expect(provideRouter).toHaveBeenCalledWith(routes);
   });
 
-  it('should include provideBrowserGlobalErrorListeners provider', () => {
-    const hasProvider = appConfig.providers.some(
-      (provider: any) =>
-        typeof provider === 'object' &&
-        provider.provide &&
-        provider.useFactory &&
-        provider.provide.toString().includes('ErrorHandler')
-    );
-    expect(hasProvider).toBeTrue();
-  });
+  it('should include expected providers', () => {
+    // Faz cast para `any` porque o array pode conter EnvironmentProviders
+    const providerTokens = (appConfig.providers as any[]).map((p: any) => p.provide);
 
-  it('should include provideZoneChangeDetection with eventCoalescing true', () => {
-    const hasZoneProvider = appConfig.providers.some(
-      (provider: any) =>
-        typeof provider === 'object' &&
-        provider.provide &&
-        provider.useFactory &&
-        provider.useFactory.toString().includes('eventCoalescing:!0')
-    );
-    expect(hasZoneProvider).toBeTrue();
-  });
-
-  it('should include provideRouter with routes', () => {
-    const hasRouter = appConfig.providers.some(
-      (provider: any) =>
-        typeof provider === 'object' &&
-        provider.provide &&
-        provider.provide.toString().includes('ROUTES')
-    );
-    expect(hasRouter).toBeTrue();
+    expect(providerTokens).toContain('BrowserGlobalErrorListeners');
+    expect(providerTokens).toContain('ZoneChangeDetection');
+    expect(providerTokens).toContain('Router');
   });
 });

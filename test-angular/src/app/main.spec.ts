@@ -1,36 +1,44 @@
-import { TestBed } from '@angular/core/testing';
-import { bootstrapApplication } from '@angular/platform-browser';
-import App from './main';
-import appConfig from './app/app.config';
 import main from './main';
 
-jest.mock('@angular/platform-browser', () => ({
-  bootstrapApplication: jest.fn(() => Promise.resolve())
-}));
+describe('main bootstrap', () => {
+  let originalConsoleError: any;
 
-jest.spyOn(console, 'error').mockImplementation(() => {});
+  beforeEach(() => {
+    originalConsoleError = console.error;
+    console.error = jest.fn();
+    jest.resetModules();
+  });
 
-describe('main', () => {
   afterEach(() => {
-    jest.clearAllMocks();
+    console.error = originalConsoleError;
   });
 
-  it('should bootstrap the App component with appConfig', async () => {
-    const mockBootstrap = bootstrapApplication as jest.Mock;
-    mockBootstrap.mockResolvedValueOnce(undefined);
+  it('should call bootstrapApplication with correct arguments', async () => {
+    const mockBootstrapApplication = jest.fn().mockReturnValue(Promise.resolve());
+    jest.doMock('@angular/platform-browser', () => ({
+      bootstrapApplication: mockBootstrapApplication
+    }));
+    const mockAppConfig = {};
+    const mockApp = {};
+    jest.doMock('./app/app.config', () => ({ default: mockAppConfig, __esModule: true }));
+    jest.doMock('./app/app', () => ({ default: mockApp, __esModule: true }));
 
-    // Re-require main to trigger the bootstrap logic
     await import('./main');
-
-    expect(bootstrapApplication).toHaveBeenCalledWith(App, appConfig);
+    expect(mockBootstrapApplication).toHaveBeenCalledWith(mockApp, mockAppConfig);
   });
 
-  it('should log error if bootstrapApplication rejects', async () => {
+  it('should catch error and call console.error', async () => {
     const error = new Error('bootstrap failed');
-    (bootstrapApplication as jest.Mock).mockRejectedValueOnce(error);
+    const mockBootstrapApplication = jest.fn().mockReturnValue(Promise.reject(error));
+    jest.doMock('@angular/platform-browser', () => ({
+      bootstrapApplication: mockBootstrapApplication
+    }));
+    const mockAppConfig = {};
+    const mockApp = {};
+    jest.doMock('./app/app.config', () => ({ default: mockAppConfig, __esModule: true }));
+    jest.doMock('./app/app', () => ({ default: mockApp, __esModule: true }));
 
     await import('./main');
-
     expect(console.error).toHaveBeenCalledWith(error);
   });
 });

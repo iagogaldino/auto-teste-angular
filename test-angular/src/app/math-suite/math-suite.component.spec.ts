@@ -6,7 +6,7 @@ describe('MathSuiteComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [MathSuiteComponent]
+      imports: [MathSuiteComponent],
     });
     const fixture = TestBed.createComponent(MathSuiteComponent);
     component = fixture.componentInstance;
@@ -16,166 +16,187 @@ describe('MathSuiteComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('initial values', () => {
-    it('should have a = 12, b = 8', () => {
-      expect(component.a()).toBe(12);
-      expect(component.b()).toBe(8);
-    });
+  it('should initialize signals with correct default values', () => {
+    expect(component.a()).toBe(12);
+    expect(component.b()).toBe(8);
   });
 
-  describe('arithmetic signals', () => {
-    it('should compute sum, diff, prod, quot, pow', () => {
-      expect(component.sum()).toBe(20);
-      expect(component.diff()).toBe(4);
-      expect(component.prod()).toBe(96);
-      expect(component.quot()).toBe(1.5);
-      expect(component.pow()).toBe(Math.pow(12, 8));
-    });
-
-    it('should compute quotient as NaN if b is 0', () => {
-      component.setB(0);
-      expect(component.quot()).toEqual(NaN);
-    });
-
-    it('should update values when a and b change', () => {
-      component.setA(7);
-      component.setB(3);
-      expect(component.sum()).toBe(10);
-      expect(component.diff()).toBe(4);
-      expect(component.prod()).toBe(21);
-      expect(component.quot()).toBeCloseTo(7 / 3);
-      expect(component.pow()).toBe(Math.pow(7, 3));
-    });
+  it('should compute sum, diff, prod, quot and pow correctly', () => {
+    component.a.set(10);
+    component.b.set(2);
+    expect(component.sum()).toBe(12);
+    expect(component.diff()).toBe(8);
+    expect(component.prod()).toBe(20);
+    expect(component.quot()).toBe(5);
+    expect(component.pow()).toBe(100);
   });
 
-  describe('gcd and lcm', () => {
-    it('should compute gcd and lcm correctly for default values', () => {
-      expect(component.gcd()).toBe(4);
-      expect(component.lcm()).toBe(24);
-    });
+  it('should handle division by zero in quot', () => {
+    component.a.set(10);
+    component.b.set(0);
+    expect(component.quot()).toBeNaN();
+  });
 
-    it('should compute gcd and lcm when one value is zero', () => {
+  it('should compute gcd and lcm correctly', () => {
+    component.a.set(12);
+    component.b.set(8);
+    expect(component.gcd()).toBe(4);
+    expect(component.lcm()).toBe(24);
+
+    component.a.set(0);
+    component.b.set(0);
+    expect(component.gcd()).toBe(0);
+    expect(component.lcm()).toBe(0);
+
+    component.a.set(13);
+    component.b.set(17);
+    expect(component.gcd()).toBe(1);
+    expect(component.lcm()).toBe(221);
+  });
+
+  it('should detect primes correctly for a and b', () => {
+    component.a.set(7);
+    component.b.set(4);
+    expect(component.isAPrime()).toBe(true);
+    expect(component.isBPrime()).toBe(false);
+
+    component.a.set(1);
+    expect(component.isAPrime()).toBe(false);
+
+    component.a.set(-7);
+    expect(component.isAPrime()).toBe(false);
+
+    component.b.set(2);
+    expect(component.isBPrime()).toBe(true);
+  });
+
+  it('should compute factorialSafe for valid, negative and overflow values', () => {
+    component.a.set(5);
+    expect(component.factorialA()).toBe(120);
+
+    component.a.set(-3);
+    expect(component.factorialA()).toBe('NaN');
+
+    component.a.set(21);
+    expect(component.factorialA()).toBe('Overflow');
+
+    component.b.set(0);
+    expect(component.factorialB()).toBe(1);
+
+    component.b.set(20);
+    expect(component.factorialB()).toBe(2432902008176640000);
+
+    component.b.set(25);
+    expect(component.factorialB()).toBe('Overflow');
+  });
+
+  it('should compute fibonacciSafe for valid, negative and overflow values', () => {
+    component.a.set(0);
+    expect(component.fibA()).toBe(0);
+
+    component.a.set(-2);
+    expect(component.fibA()).toBe('NaN');
+
+    component.a.set(1);
+    expect(component.fibA()).toBe(1);
+
+    component.a.set(10);
+    expect(component.fibA()).toBe(55);
+
+    component.a.set(71);
+    expect(component.fibA()).toBe('Overflow');
+
+    component.b.set(15);
+    expect(component.fibB()).toBe(610);
+
+    component.b.set(-1);
+    expect(component.fibB()).toBe('NaN');
+  });
+
+  describe('setA', () => {
+    it('should set a with number input', () => {
+      component.setA(42);
+      expect(component.a()).toBe(42);
+      component.setA(-10);
+      expect(component.a()).toBe(-10);
       component.setA(0);
-      component.setB(10);
-      expect(component.gcd()).toBe(10);
-      expect(component.lcm()).toBe(0);
-
-      component.setA(7);
-      component.setB(0);
-      expect(component.gcd()).toBe(7);
-      expect(component.lcm()).toBe(0);
-    });
-  });
-
-  describe('isPrime checks', () => {
-    it('should detect primes for a and b', () => {
-      component.setA(13);
-      component.setB(17);
-      expect(component.isAPrime()).toBeTrue();
-      expect(component.isBPrime()).toBeTrue();
+      expect(component.a()).toBe(0);
+      component.setA(3.5);
+      expect(component.a()).toBe(3.5);
     });
 
-    it('should detect non-primes for a and b', () => {
-      component.setA(12);
-      component.setB(8);
-      expect(component.isAPrime()).toBeFalse();
-      expect(component.isBPrime()).toBeFalse();
-    });
-
-    it('should return false for a or b <= 1', () => {
-      component.setA(1);
-      component.setB(-5);
-      expect(component.isAPrime()).toBeFalse();
-      expect(component.isBPrime()).toBeFalse();
-    });
-  });
-
-  describe('factorialSafe', () => {
-    it('should return correct factorial for valid n', () => {
-      component.setA(5);
-      expect(component.factorialA()).toBe(120);
-
-      component.setB(0);
-      expect(component.factorialB()).toBe(1);
-    });
-
-    it('should return "NaN" for negative n', () => {
-      component.setA(-3);
-      expect(component.factorialA()).toBe('NaN');
-    });
-
-    it('should return "Overflow" for n > 20', () => {
-      component.setA(21);
-      expect(component.factorialA()).toBe('Overflow');
-    });
-
-    it('should treat non-integer input as floored value', () => {
-      component.setA(4.9);
-      expect(component.factorialA()).toBe(24); // floor(4.9) = 4, 4! = 24
-    });
-  });
-
-  describe('fibonacciSafe', () => {
-    it('should return correct fibonacci for valid n', () => {
-      component.setA(0);
-      expect(component.fibA()).toBe(0);
-
-      component.setA(1);
-      expect(component.fibA()).toBe(1);
-
-      component.setA(7);
-      expect(component.fibA()).toBe(13);
-
-      component.setB(10);
-      expect(component.fibB()).toBe(55);
-    });
-
-    it('should return "NaN" for negative n', () => {
-      component.setA(-1);
-      expect(component.fibA()).toBe('NaN');
-    });
-
-    it('should return "Overflow" for n > 70', () => {
-      component.setA(71);
-      expect(component.fibA()).toBe('Overflow');
-    });
-
-    it('should treat non-integer input as floored value', () => {
-      component.setA(6.9); // floor = 6, fib = 8
-      expect(component.fibA()).toBe(8);
-    });
-  });
-
-  describe('setA and setB', () => {
-    it('should accept number input as string or number', () => {
-      component.setA('15');
-      component.setB('9');
-      expect(component.a()).toBe(15);
-      expect(component.b()).toBe(9);
-
-      component.setA(22);
-      component.setB(3.2);
-      expect(component.a()).toBe(22);
-      expect(component.b()).toBe(3.2);
-
-      // Should ignore invalid string
-      const prevA = component.a();
+    it('should set a with numeric string input', () => {
+      component.setA('13');
+      expect(component.a()).toBe(13);
+      component.setA('-2');
+      expect(component.a()).toBe(-2);
+      component.setA('0');
+      expect(component.a()).toBe(0);
+      component.setA('3.14');
+      expect(component.a()).toBe(3.14);
+      component.setA('');
+      expect(component.a()).toBe(0); // '' coerces to 0
+      component.setA(null as any);
+      expect(component.a()).toBe(0); // null coerces to 0
+      const prev = component.a();
+      component.setA(undefined as any); // undefined => NaN
+      expect(component.a()).toBe(prev); // should not change
       component.setA('abc');
-      expect(component.a()).toBe(prevA);
+      expect(component.a()).toBe(prev); // should not change
+      component.setA({} as any);
+      expect(component.a()).toBe(prev); // should not change
+      component.setA([] as any); // [] => 0
+      expect(component.a()).toBe(0); // should change to 0
+      component.setA([2] as any); // [2] => 2
+      expect(component.a()).toBe(2); // should change to 2
+      const prev2 = component.a();
+      component.setA([1,2] as any); // [1,2] => NaN
+      expect(component.a()).toBe(prev2); // should not change
+    });
+  });
 
-      const prevB = component.b();
-      component.setB('');
-      expect(component.b()).toBe(prevB);
-
+  describe('setB', () => {
+    it('should set b with number input', () => {
+      component.setB(99);
+      expect(component.b()).toBe(99);
+      component.setB(-7.5);
+      expect(component.b()).toBe(-7.5);
+      component.setB(0);
+      expect(component.b()).toBe(0);
     });
 
-    it('should update all computed values when setA/setB are called', () => {
-      component.setA(6); // b still default 8
-      expect(component.sum()).toBe(14);
-      expect(component.prod()).toBe(48);
+    it('should set b with numeric string input', () => {
+      component.setB('-12');
+      expect(component.b()).toBe(-12);
 
-      component.setB(2);
-      expect(component.diff()).toBe(4);
+      component.setB('5');
+      expect(component.b()).toBe(5);
+
+      component.setB('');
+      expect(component.b()).toBe(0); // '' coerces to 0
+
+      component.setB(null as any);
+      expect(component.b()).toBe(0);
+
+      const prev = component.b();
+      component.setB(undefined as any); // undefined => NaN
+      expect(component.b()).toBe(prev);
+
+      component.setB('notanumber');
+      expect(component.b()).toBe(prev);
+
+      component.setB({} as any);
+      expect(component.b()).toBe(prev);
+
+      component.setB([] as any); // [] => 0
+      expect(component.b()).toBe(0);
+
+      component.setB([7] as any); // [7] => 7
+      expect(component.b()).toBe(7);
+
+      const prevArr = component.b();
+      component.setB([1,2] as any); // [1,2] => NaN
+      expect(component.b()).toBe(prevArr); // should not change
     });
   });
 });

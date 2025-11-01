@@ -10,6 +10,13 @@ import { AIProvider } from './ai/aiProvider';
 import { OpenAIProvider } from './ai/openaiProvider';
 import { StackspotProvider } from './ai/stackspotProvider';
 import { logger, writeRaw } from './logger';
+import {
+  buildGenerationSystemPrompt,
+  buildGenerationUserPrompt,
+  buildFixSystemPrompt,
+  buildFixUserPrompt,
+  buildNormalizeSystemPrompt
+} from './prompts';
 
 export class ChatGPTService {
   private readonly model: string;
@@ -42,8 +49,8 @@ export class ChatGPTService {
     try {
       const t0 = Date.now();
       logger.info('ai_generate_start', { provider: this.provider, model: this.model, language: request.language });
-      const systemPrompt = this.buildSystemPrompt(request);
-      const userPrompt = this.buildUserPrompt(request);
+      const systemPrompt = buildGenerationSystemPrompt({ language: request.language, framework: request.framework, testType: request.testType });
+      const userPrompt = buildGenerationUserPrompt({ language: request.language, code: request.code, filePath: request.filePath, additionalInstructions: request.additionalInstructions });
 
       const messages = [
         { role: 'system' as const, content: systemPrompt },
@@ -97,98 +104,7 @@ export class ChatGPTService {
 
   // Stackspot/OpenAI specifics handled by providers now
 
-  /**
-   * Constrói o prompt do sistema para geração de testes unitários
-   */
-  private buildSystemPrompt(request: UnitTestRequest): string {
-    const framework = request.framework || 'padrão';
-    const testType = request.testType || 'unit';
-    
-    return `Você é um especialista em testes unitários. Sua tarefa é gerar testes unitários de alta qualidade para o código fornecido.
-
-INSTRUÇÕES:
-1. Analise o código fornecido cuidadosamente
-2. Identifique todas as funções, métodos e casos de teste necessários
-3. Gere testes que cubram casos positivos, negativos e edge cases
-4. Use o framework de teste apropriado para ${request.language}
-5. Inclua comentários explicativos nos testes
-6. Certifique-se de que os testes são independentes e podem ser executados isoladamente
-
-INFORMAÇÕES IMPORTANTES SOBRE ANGULAR SIGNALS:
-- Para acessar o valor de um signal, use signal() não signal.value
-- Signals são funções, então para obter o valor: signal() 
-- Para atualizar um signal: signal.set(novoValor)
-- Para ler um signal em testes: expect(component.signal()).toBe(valor)
-
-INFORMAÇÕES IMPORTANTES SOBRE COMPONENTES STANDALONE:
-- Componentes standalone NÃO podem ser declarados em declarations
-- Componentes standalone devem ser IMPORTADOS no array imports
-- Para testar componente standalone: TestBed.configureTestingModule({ imports: [ComponentName] })
-- NÃO use declarations para componentes standalone
-- Para obter instância: TestBed.createComponent(ComponentName) não TestBed.inject()
-- REGRA OBRIGATÓRIA: Se o componente é standalone, ele DEVE estar no array imports
-- Exemplo correto: 
-  TestBed.configureTestingModule({ imports: [CalculatorComponent] });
-  const fixture = TestBed.createComponent(CalculatorComponent);
-  const component = fixture.componentInstance;
-- Exemplo INCORRETO: 
-  TestBed.configureTestingModule({ imports: [CommonModule] }); // FALTANDO o componente standalone
-  TestBed.configureTestingModule({ declarations: [CalculatorComponent] }); // ERRADO para standalone
-
-RESPOSTA:
-Responda SOMENTE com o CÓDIGO DO TESTE, sem markdown, sem JSON, sem explicações. Não envolva em cercas de código.
-
-Linguagem: ${request.language}
-Framework: ${framework}
-Tipo de teste: ${testType}`;
-  }
-
-  /**
-   * Constrói o prompt do usuário com o código a ser testado
-   */
-  private buildUserPrompt(request: UnitTestRequest): string {
-    let prompt = `Por favor, gere testes unitários para o seguinte código:\n\n`;
-    prompt += `\`\`\`${request.language}\n${request.code}\n\`\`\`\n\n`;
-    
-    // Adiciona informações sobre o arquivo para imports corretos
-    if (request.filePath) {
-      const componentFilePath = request.filePath;
-      const pathParts = componentFilePath.split(/[\/\\]/);
-      const componentFileName = pathParts[pathParts.length - 1]; // Ex: delsuc.ts
-      const componentBaseName = componentFileName.replace('.ts', ''); // Ex: delsuc
-      
-      prompt += `INFORMAÇÕES CRÍTICAS PARA IMPORTS:\n`;
-      prompt += `- Arquivo do componente: ${componentFilePath}\n`;
-      prompt += `- Nome do arquivo do componente: ${componentFileName}\n`;
-      prompt += `- Nome base do arquivo: ${componentBaseName}\n\n`;
-      
-      prompt += `REGRA DE OURO PARA IMPORTS (ATENÇÃO - SIGA EXATAMENTE):\n`;
-      prompt += `O import CORRETO do componente deve ser APENAS:\n\n`;
-      prompt += `import { ComponentName } from './${componentBaseName}';\n\n`;
-      prompt += `❌ NÃO use: './${componentBaseName}.component'\n`;
-      prompt += `❌ NÃO adicione '.component' no caminho do import\n`;
-      prompt += `✅ USE APENAS: './${componentBaseName}'\n\n`;
-      
-      prompt += `EXEMPLO:\n`;
-      prompt += `Se o arquivo é ${componentFileName}, o import correto é:\n`;
-      prompt += `import { ComponentName } from './${componentBaseName}';\n\n`;
-      
-      if (componentBaseName.includes('component')) {
-        prompt += `Se o arquivo é ${componentFileName}, o import correto é:\n`;
-        prompt += `import { ComponentName } from './${componentBaseName}';\n\n`;
-      }
-      
-      prompt += `**IMPORTANTE: Use APENAS o nome base do arquivo no import, SEM adicionar '.component'!**\n\n`;
-    }
-    
-    if (request.additionalInstructions) {
-      prompt += `Instruções adicionais: ${request.additionalInstructions}\n\n`;
-    }
-    
-    prompt += `Responda SOMENTE com o CÓDIGO DO TESTE (sem markdown, sem JSON).`;
-    
-    return prompt;
-  }
+  // prompts de geração movidos para './prompts'
 
   /**
    * Faz o parse da resposta do ChatGPT para UnitTestResponse
@@ -206,12 +122,26 @@ Tipo de teste: ${testType}`;
       writeRaw('ai-response', content, 'txt');
 
       // 0) Caminho rápido: extrair código puro se houver cercas ou se parecer código
-      const fenced = content.match(/```(typescript|ts|javascript|js)?\s*([\s\S]*?)\s*```/);
-      if (fenced && fenced[2]) {
-        const codeOnly = fenced[2].trim();
+      const fencedRegex = /```(?:typescript|ts|javascript|js)?\s*([\s\S]*?)\s*```/g;
+      const testPattern = /(describe\(|\bit\(|\btest\(|TestBed\.)/;
+      let bestBlock: string | null = null;
+      let m: RegExpExecArray | null;
+      while ((m = fencedRegex.exec(content)) !== null) {
+        const block = (m[1] || '').trim();
+        if (!block) continue;
+        if (!bestBlock) {
+          bestBlock = block;
+        } else {
+          const currentScore = (bestBlock.match(/\n/g) || []).length + (testPattern.test(bestBlock) ? 50 : 0);
+          const newScore = (block.match(/\n/g) || []).length + (testPattern.test(block) ? 50 : 0);
+          if (newScore > currentScore) bestBlock = block;
+        }
+      }
+      if (bestBlock) {
+        const codeOnly = this.sanitizeForJest(bestBlock.trim());
         return {
           testCode: this.fixUnclosedBlocks(codeOnly),
-          explanation: 'Código retornado diretamente pela IA',
+          explanation: 'Código retornado diretamente pela IA (bloco selecionado)',
           testCases: [],
           dependencies: [],
           setupInstructions: ''
@@ -219,7 +149,7 @@ Tipo de teste: ${testType}`;
       }
       const looksLikeCode = /describe\(|import\s+|TestBed\.|expect\(/.test(content);
       if (looksLikeCode) {
-        const codeOnly = content.trim();
+        const codeOnly = this.sanitizeForJest(content.trim());
         return {
           testCode: this.fixUnclosedBlocks(codeOnly),
           explanation: 'Código retornado diretamente pela IA',
@@ -316,7 +246,7 @@ Tipo de teste: ${testType}`;
         if (!normalizedResponse.testCode || !normalizedResponse.explanation) {
           // último fallback: trate a resposta inteira como código
           return {
-            testCode: this.fixUnclosedBlocks(content.trim()),
+            testCode: this.fixUnclosedBlocks(this.sanitizeForJest(content.trim())),
             explanation: 'Fallback: resposta tratada como código',
             testCases: [],
             dependencies: [],
@@ -369,22 +299,7 @@ Tipo de teste: ${testType}`;
    * Pede para a IA normalizar qualquer conteúdo em um JSON no formato esperado
    */
   private async normalizeAiResponse(content: string): Promise<{ testCode: string; explanation: string; testCases?: string[]; dependencies?: string[]; setupInstructions?: string }>{
-    const system = `Você é um normalizador estrito. Sua única saída DEVE ser um JSON válido exatamente no formato abaixo. Não escreva nada além do JSON.
-
-FORMATO EXATO:
-{
-  "testCode": "código do teste completo com \\n para quebras de linha",
-  "explanation": "explicação do que foi gerado",
-  "testCases": ["caso 1"],
-  "dependencies": ["dep1"],
-  "setupInstructions": "instruções se necessário"
-}
-
-REGRAS:
-- Se o conteúdo já estiver em JSON, corrija quebras/aspas e normalize os campos para o formato acima.
-- Se vier texto/markdown com bloco de código (ex.: \`\`\`typescript ...\`\`\`), extraia SOMENTE o código e coloque em testCode como string única com \\n.
-- Nunca use markdown na resposta, nunca use comentários fora do JSON, nunca use aspas simples.
-`;
+    const system = buildNormalizeSystemPrompt();
     const messages = [
       { role: 'system' as const, content: system },
       { role: 'user' as const, content: `Conteúdo a normalizar:\n\n${content}` }
@@ -438,9 +353,9 @@ REGRAS:
         };
       }
     } catch {}
-    // 4) Último recurso: tratar tudo como código
+    // 4) Último recurso: tratar tudo como código (usa o texto bruto)
     return {
-      testCode: raw.trim(),
+      testCode: this.fixUnclosedBlocks(this.sanitizeForJest(String(raw || '')).trim()),
       explanation: 'Normalizado de texto livre',
       testCases: [],
       dependencies: [],
@@ -461,8 +376,8 @@ REGRAS:
     try {
       const t0 = Date.now();
       logger.info('ai_fix_start', { component: request.componentName });
-      const systemPrompt = this.buildFixErrorSystemPrompt();
-      const userPrompt = this.buildFixErrorUserPrompt(request);
+      const systemPrompt = buildFixSystemPrompt();
+      const userPrompt = buildFixUserPrompt(request);
 
       const messages = [
         { role: 'system' as const, content: systemPrompt },
@@ -516,99 +431,56 @@ REGRAS:
     return hasDescribe && hasIt && hasImport;
   }
 
-  /**
-   * Constrói o prompt do sistema para correção/melhoria de testes
-   */
-  private buildFixErrorSystemPrompt(): string {
-    return `Você é um especialista em testes unitários para Angular com Jest e TypeScript. 
-Sua tarefa é analisar e corrigir testes unitários que falharam na execução.
-
-IMPORTANTE:
-- Analise cuidadosamente o erro de execução fornecido
-- Identifique a CAUSA RAIZ do erro (imports faltando, configurações incorretas, etc.)
-- CORRIJA o teste para que ele execute com sucesso
-- Use as melhores práticas do Jest e Angular Testing
-- Certifique-se de que TODOS os imports necessários estão presentes
-- Verifique se o TestBed está configurado corretamente
-- Se o componente é standalone, certifique-se de incluir no array imports do TestBed
-- Adicione TODOS os mocks necessários
-
-RESPOSTA:
-Responda SOMENTE com o CÓDIGO DO TESTE corrigido, sem markdown, sem JSON, sem explicações. Não envolva em cercas de código.`;
+  // Normalizações para Jest (substitui matchers Jasmine e melhora comparações de NaN)
+  private sanitizeForJest(code: string): string {
+    let out = String(code || '');
+    // Jasmine -> Jest
+    out = out.replace(/\.toBeTrue\(\)/g, '.toBe(true)');
+    out = out.replace(/\.toBeFalse\(\)/g, '.toBe(false)');
+    // NaN matcher
+    out = out.replace(/\.toEqual\(\s*NaN\s*\)/g, '.toBeNaN()');
+    // jasmine.* matchers -> Jest expect.* utilities
+    out = out.replace(/jasmine\.arrayContaining\s*\(/g, 'expect.arrayContaining(');
+    out = out.replace(/jasmine\.objectContaining\s*\(/g, 'expect.objectContaining(');
+    // Corrigir import incorreto de ROUTES
+    if (/\bROUTES\b/.test(out)) {
+      // Remove import errado de ROUTES de '@angular/core'
+      out = out.replace(/import\s*\{[^}]*ROUTES[^}]*\}\s*from\s*'@angular\/core';?\n?/g, '');
+      // Garante import correto de ROUTES de '@angular/router'
+      const hasRouterImport = /from\s*'@angular\/router'/.test(out);
+      if (hasRouterImport) {
+        // Acrescenta ROUTES no import existente de @angular/router
+        out = out.replace(/import\s*\{([^}]*)\}\s*from\s*'@angular\/router';/g, (m, g1) => {
+          const names = g1.split(',').map(s => s.trim());
+          if (!names.includes('ROUTES')) names.push('ROUTES');
+          return `import { ${names.join(', ')} } from '@angular/router';`;
+        });
+      } else {
+        out = `import { ROUTES } from '@angular/router';\n` + out;
+      }
+    }
+    // Garantir import de ErrorHandler quando usado
+    if (/\bErrorHandler\b/.test(out)) {
+      const hasCoreImport = /from\s*'@angular\/core'/.test(out);
+      if (hasCoreImport) {
+        out = out.replace(/import\s*\{([^}]*)\}\s*from\s*'@angular\/core';/g, (m, g1) => {
+          const names = g1.split(',').map(s => s.trim()).filter(Boolean);
+          if (!names.includes('ErrorHandler')) names.push('ErrorHandler');
+          return `import { ${names.join(', ')} } from '@angular/core';`;
+        });
+      } else {
+        out = `import { ErrorHandler } from '@angular/core';\n` + out;
+      }
+    }
+    // Evitar criação manual de InjectionToken para ZoneChangeDetectionOptions
+    if (/new\s+InjectionToken\s*<.*?>?\s*\(\s*['"]ZoneChangeDetectionOptions['"]\s*\)/.test(out)) {
+      out = out.replace(/.*new\s+InjectionToken[\s\S]*?\);\n?/g, '');
+    }
+    // Prefer expect(...).toBeNaN() where appropriate
+    return out;
   }
 
-  /**
-   * Constrói o prompt do usuário para correção/melhoria de testes
-   */
-  private buildFixErrorUserPrompt(request: {
-    componentCode: string;
-    testCode: string;
-    errorMessage: string;
-    componentName: string;
-    filePath: string;
-  }): string {
-    // Extrai informações do caminho do componente
-    const componentFilePath = request.filePath;
-    const pathParts = componentFilePath.split(/[\/\\]/);
-    const componentFileName = pathParts[pathParts.length - 1]; // Ex: delsuc.ts
-    
-    // Remove a extensão .ts para obter o nome base
-    const componentBaseName = componentFileName.replace('.ts', ''); // Ex: delsuc
-    
-    // O arquivo de teste tem a extensão .spec.ts
-    const testFileName = componentBaseName + '.spec.ts'; // Ex: delsuc.spec.ts
-    
-    return `Por favor, analise e CORRIJA o seguinte teste unitário que falhou na execução:
-
-COMPONENTE ORIGINAL:
-\`\`\`typescript
-${request.componentCode}
-\`\`\`
-
-TESTE ATUAL (COM ERRO):
-\`\`\`typescript
-${request.testCode}
-\`\`\`
-
-ERRO DE EXECUÇÃO:
-${request.errorMessage}
-
-INFORMAÇÕES CRÍTICAS PARA IMPORTS:
-- Nome do componente: ${request.componentName}
-- Arquivo do componente original: ${componentFilePath}
-- Nome do arquivo do componente: ${componentFileName}
-- Nome base do arquivo: ${componentBaseName}
-- Arquivo de teste esperado: ${testFileName}
-
-REGRA DE OURO PARA IMPORTS (ATENÇÃO - SIGA EXATAMENTE):
-O import CORRETO do componente deve ser APENAS:
-
-import { ${request.componentName} } from './${componentBaseName}';
-
-❌ NÃO use: './${componentBaseName}.component'
-❌ NÃO use: './${request.componentName.toLowerCase()}.component'  
-❌ NÃO use: './${componentBaseName}.component'
-✅ USE APENAS: './${componentBaseName}'
-
-EXEMPLO:
-Se o arquivo é delsuc.ts, o import correto é:
-import { Delsuc } from './delsuc';
-
-Se o arquivo é calculator.component.ts, o import correto é:
-import { CalculatorComponent } from './calculator.component';
-
-INSTRUÇÕES:
-1. Analise o erro de execução fornecido acima
-2. Identifique a CAUSA RAIZ do problema
-3. CORRIJA o import do componente para usar APENAS o nome base do arquivo
-4. Se o erro for "Cannot find module", substitua o import errado pelo import correto mostrado acima
-5. Se o erro for relacionado a TestBed, configure corretamente os imports
-6. Se o componente é standalone, certifique-se de incluí-lo no array imports do TestBed.configureTestingModule
-7. Adicione todos os mocks e providers necessários
-8. Gere um teste COMPLETO, EXECUTÁVEL e CORRETO com o import CORRETO
-9. **VERIFIQUE que TODOS os blocos de código estão fechados corretamente (chaves, parênteses)**
-10. **Garanta que a função describe(), beforeEach() e it() estão TODAS fechadas com })`
-  }
+  // prompts de correção movidos para './prompts'
 
   /**
    * Faz parse da resposta de correção de erro
@@ -625,12 +497,29 @@ INSTRUÇÕES:
       writeRaw('ai-fix-response', content, 'txt');
 
       // Caminho rápido: extrair código puro
-      const fenced = content.match(/```(typescript|ts|javascript|js)?\s*([\s\S]*?)\s*```/);
-      if (fenced && fenced[2]) {
-        const codeOnly = fenced[2].trim();
+      // Preferir o MAIOR bloco cercado ou aquele que contenha trechos típicos de teste (describe/it/TestBed)
+      const fencedRegex = /```(?:typescript|ts|javascript|js)?\s*([\s\S]*?)\s*```/g;
+      const testPattern = /(describe\(|\bit\(|\btest\(|TestBed\.)/;
+      let bestBlock: string | null = null;
+      let match: RegExpExecArray | null;
+      while ((match = fencedRegex.exec(content)) !== null) {
+        const block = (match[1] || '').trim();
+        if (!block) continue;
+        const looksLikeTest = testPattern.test(block);
+        if (!bestBlock) {
+          bestBlock = block;
+        } else {
+          const currentScore = (bestBlock.match(/\n/g) || []).length + (testPattern.test(bestBlock) ? 50 : 0);
+          const newScore = (block.match(/\n/g) || []).length + (looksLikeTest ? 50 : 0);
+          if (newScore > currentScore) bestBlock = block;
+        }
+        // Se encontramos um bloco que claramente parece um teste, podemos continuar procurando, mas ele já é forte candidato
+      }
+      if (bestBlock) {
+        const codeOnly = this.sanitizeForJest(bestBlock.trim());
         return {
           testCode: this.fixUnclosedBlocks(codeOnly),
-          explanation: 'Código corrigido retornado diretamente pela IA',
+          explanation: 'Código corrigido retornado diretamente pela IA (bloco selecionado)',
           testCases: [],
           dependencies: [],
           setupInstructions: ''
@@ -638,7 +527,7 @@ INSTRUÇÕES:
       }
       const looksLikeCode = /describe\(|import\s+|TestBed\.|expect\(/.test(content);
       if (looksLikeCode) {
-        const codeOnly = content.trim();
+        const codeOnly = this.sanitizeForJest(content.trim());
         return {
           testCode: this.fixUnclosedBlocks(codeOnly),
           explanation: 'Código corrigido retornado diretamente pela IA',
@@ -676,7 +565,7 @@ INSTRUÇÕES:
       }
 
       // Limpa o testCode removendo escape characters duplicados
-      let testCode = parsedResponse.testCode;
+      let testCode = this.sanitizeForJest(parsedResponse.testCode || '');
       
       
       if (typeof testCode === 'string') {

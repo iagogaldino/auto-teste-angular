@@ -1,6 +1,5 @@
-import { TestBed } from '@angular/core/testing';
-import Delsuc from './delsuc';
-import { ComponentFixture } from '@angular/core/testing';
+import { TestBed, ComponentFixture } from '@angular/core/testing';
+import { Delsuc } from './delsuc';
 
 describe('Delsuc', () => {
   let fixture: ComponentFixture<Delsuc>;
@@ -16,7 +15,13 @@ describe('Delsuc', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it('should create the component', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should render the component', () => {
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled).toBeTruthy();
   });
 });

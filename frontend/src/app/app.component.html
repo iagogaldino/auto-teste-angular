@@ -29,34 +29,9 @@
           Executar Testes
         </button>
         <span class="spacer"></span>
-        <button mat-raised-button (click)="toggleSelectionMode()" [color]="selectionMode() ? 'warn' : 'primary'" [disabled]="scannedComponents().length === 0">
-          <mat-icon>{{ selectionMode() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
-          {{ selectionMode() ? 'Sair Seleção' : 'Selecionar Múltiplos' }}
-        </button>
-        <mat-chip color="primary" class="selected-chip">
-          <mat-icon>check_circle</mat-icon>
-          {{ selectedFiles().length }} selecionados
-        </mat-chip>
-        <div class="nav-actions">
-          <button mat-raised-button (click)="selectAllFiles()" color="primary">
-            <mat-icon>select_all</mat-icon>
-            Todos
-          </button>
-          <button mat-raised-button (click)="clearSelection()" color="accent">
-            <mat-icon>clear_all</mat-icon>
-            Limpar
-          </button>
-          <button 
-            mat-raised-button 
-            color="primary" 
-            (click)="generateTests()" 
-            [disabled]="selectedFiles().length === 0 || isGeneratingTests()"
-            title="Gerar testes para os selecionados"
-          >
-            <mat-icon>{{ isGeneratingTests() ? 'refresh' : 'rocket_launch' }}</mat-icon>
-            Gerar Selecionados
-          </button>
-        </div>
+        
+        
+        
       </div>
     </mat-toolbar-row>
   </mat-toolbar>
@@ -69,6 +44,27 @@
       <mat-sidenav class="app-sidenav" mode="side" opened>
         <mat-card class="tree-card">
           <mat-card-content>
+            <div class="sidenav-actions">
+              <button mat-icon-button (click)="toggleSelectionMode()" [disabled]="scannedComponents().length === 0" [color]="selectionMode() ? 'warn' : undefined" title="Selecionar múltiplos">
+                <mat-icon>{{ selectionMode() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+              </button>
+              <button mat-icon-button (click)="selectAllFiles()" title="Selecionar todos">
+                <mat-icon>select_all</mat-icon>
+              </button>
+              <button mat-icon-button (click)="clearSelection()" title="Limpar seleção">
+                <mat-icon>clear_all</mat-icon>
+              </button>
+                <button 
+                  mat-raised-button 
+                  color="primary" 
+                  (click)="generateTests()" 
+                  [disabled]="selectedFiles().length === 0 || isGeneratingTests()"
+                  title="Gerar testes para os selecionados"
+                >
+                  <mat-icon>{{ isGeneratingTests() ? 'refresh' : 'rocket_launch' }}</mat-icon>
+                  Gerar Selecionados
+                </button>
+            </div>
             <mat-tree [dataSource]="treeDataSource" [treeControl]="treeControl" class="project-tree">
               <!-- Nó de diretório (pasta) -->
               <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild" class="tree-folder-node">
@@ -128,6 +124,18 @@
           <div class="v-resizer" *ngIf="isSpecPath(previewPath() || '')" (mousedown)="startResize('code-log', $event)"></div>
           <div class="col log" *ngIf="isSpecPath(previewPath() || '')">
             <div class="execution-output" [ngClass]="getExecutionStatusClass(specExecutions()[directoryPath() + '/' + previewPath()]?.status || 'running')">
+              <div class="log-actions" *ngIf="specExecutions()[directoryPath() + '/' + previewPath()]?.status === 'error'">
+                <button 
+                  mat-raised-button 
+                  color="warn" 
+                  (click)="fixCurrentSpecFromLog()"
+                  [disabled]="isFixingTest()"
+                  title="Corrigir teste com base no erro do log"
+                >
+                  <mat-icon>{{ isFixingTest() ? 'hourglass_empty' : 'build' }}</mat-icon>
+                  {{ isFixingTest() ? 'Corrigindo...' : 'Corrigir com IA' }}
+                </button>
+              </div>
               <pre class="output-content">{{ specExecutions()[directoryPath() + '/' + previewPath()]?.output }}</pre>
             </div>
           </div>

@@ -126,6 +126,15 @@ Arquivo: `frontend/src/app/app.component.ts`
 - Correção por IA: `openFixTestDialog(...)`/`confirmFixTestWithExistingSpec(...)`/`sendToFixAI(...)` → `socketService.fixTestError(...)`.
 - Configurações: `loadConfig()`/`saveConfig()`/`applyConfig()` → `configService.getConfig`/`saveConfig`/`applyConfig`.
 
+### Ajuste rápido pelo Log de Execução (novo)
+- Local: painel de log ao visualizar um arquivo `*.spec.ts` em `app.component.html`.
+- Elemento: botão “Corrigir com IA” exibido quando o status do log é `error`.
+- Handler: `fixCurrentSpecFromLog()`.
+  - Constrói um `TestGenerationResult` mínimo a partir do log atual (`specExecutions[fullSpecPath]`).
+  - Mapeia o caminho do `*.spec.ts` para o arquivo original `*.ts`.
+  - Reutiliza o fluxo existente chamando `regenerateTestFromExecutionError(...)`, que por sua vez envia `socketService.fixTestError(...)` ao backend.
+- Backend: usa o mesmo evento já documentado `fix-test-error` para gerar um teste corrigido e emitir `test-fixed`.
+
 ## Observações
 - As URLs/hosts são autodetectadas pelo frontend a partir de `environment.*` e, na ausência, caem no `window.location.origin`. Em desenvolvimento padrão, espera-se backend em `http://localhost:3000` e frontend em `http://localhost:4200`.
 - Todos os eventos Socket.IO listados correspondem a rotas e handlers no backend sob `backend/src/socket/socketHandlers.ts` e serviços relacionados.

@@ -1,4 +1,5 @@
 import { Component, signal, computed, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { environment } from '../environments/environment';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SocketService } from './services/socket.service';
@@ -209,7 +210,6 @@ export class AppComponent implements OnInit, OnDestroy {
   showSplash = signal<boolean>(true);
 
   // Histórico de diretórios recentes
-  private recentDirectoriesKey = 'recentDirectories';
   recentDirectories = signal<string[]>([]);
 
   // Stepper reference
@@ -1013,6 +1013,36 @@ export class AppComponent implements OnInit, OnDestroy {
     this.socketService.executeTest(fullSpecPath, '', fullSpecPath);
   }
 
+  // Corrigir teste diretamente do log do spec selecionado
+  fixCurrentSpecFromLog(): void {
+    const currentRel = this.previewPath();
+    if (!currentRel || !this.isSpecPath(currentRel)) return;
+    const fullSpecPath = `${this.directoryPath()}/${currentRel}`;
+    const exec = this.specExecutions()[fullSpecPath];
+    if (!exec || exec.status !== 'error') return;
+
+    // Deduz o arquivo original a partir do .spec.ts atual
+    const originalFullPath = fullSpecPath.replace(/\.spec\.ts$/i, '.ts');
+
+    const pseudoResult: TestGenerationResult = {
+      filePath: originalFullPath,
+      success: false,
+      testCode: '',
+      explanation: '',
+      testCases: [],
+      dependencies: [],
+      error: 'Erro de execução do teste',
+      testExecution: {
+        status: 'error',
+        output: exec.output,
+        startTime: exec.startTime,
+        endTime: exec.endTime
+      }
+    } as any;
+
+    this.regenerateTestFromExecutionError(pseudoResult);
+  }
+
   // ===== Resize handlers =====
   startResize(handle: 'files-code' | 'code-log', event: MouseEvent): void {
     event.preventDefault();
@@ -1139,7 +1169,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.errorMessage.set('');
   }
 
-  // ===== Diretórios Recentes (localStorage) =====
+  // ===== Diretórios Recentes =====
   private tryAutoOpenLastDirectory(directories: string[] | null | undefined): void {
     if (!directories || directories.length === 0) return;
     const last = (directories[0] || '').trim();
@@ -1153,7 +1183,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private async loadRecentDirectories(): Promise<void> {
     try {
-      const res = await fetch('/api/directories');
+      const res = await fetch(`${environment.apiBaseUrl}/api/directories`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data?.directories)) {
@@ -1164,30 +1194,15 @@ export class AppComponent implements OnInit, OnDestroy {
         }
       }
     } catch {}
-    // Fallback local
-    try {
-      const raw = localStorage.getItem(this.recentDirectoriesKey);
-      if (raw) {
-        const list = JSON.parse(raw);
-        if (Array.isArray(list)) this.recentDirectories.set(list);
-        // Autoabre também no fallback
-        this.tryAutoOpenLastDirectory(list);
-      }
-    } catch {}
   }
 
-  private saveRecentDirectoriesFallback(): void {
-    try {
-      localStorage.setItem(this.recentDirectoriesKey, JSON.stringify(this.recentDirectories()));
-    } catch {}
-  }
 
   async addRecentDirectory(path: string): Promise<void> {
     if (!path) return;
     const trimmed = path.trim();
     if (!trimmed) return;
     try {
-      const res = await fetch('/api/directories', {
+      const res = await fetch(`${environment.apiBaseUrl}/api/directories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: trimmed })
@@ -1200,12 +1215,6 @@ export class AppComponent implements OnInit, OnDestroy {
         }
       }
     } catch {}
-    // fallback local
-    this.recentDirectories.update(list => {
-      const exists = list.some(p => p.toLowerCase() === trimmed.toLowerCase());
-      return exists ? list : [trimmed, ...list].slice(0, 10);
-    });
-    this.saveRecentDirectoriesFallback();
   }
 
   selectRecentDirectory(path: string): void {
@@ -1215,7 +1224,7 @@ export class AppComponent implements OnInit, OnDestroy {
   async removeRecentDirectory(path: string, event?: Event): Promise<void> {
     if (event) event.stopPropagation();
     try {
-      const res = await fetch('/api/directories', {
+      const res = await fetch(`${environment.apiBaseUrl}/api/directories`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path })
@@ -1228,9 +1237,6 @@ export class AppComponent implements OnInit, OnDestroy {
         }
       }
     } catch {}
-    // fallback local
-    this.recentDirectories.update(list => list.filter(p => p !== path));
-    this.saveRecentDirectoriesFallback();
   }
 
   getFileName(filePath: string): string {
@@ -1738,7 +1744,8 @@ export class AppComponent implements OnInit, OnDestroy {
 
     
 
-    // Extrai o caminho relativo do filePath completo
+    // Extrai o caminho relativo do filePath completo (normalizado)
+    const normalize = (p: string) => (p || '').replace(/\\/g, '/');
     let relativePath = result.filePath;
     
     // Se o filePath contém o caminho do diretório base, remove-o
@@ -1748,8 +1755,10 @@ export class AppComponent implements OnInit, OnDestroy {
       
     }
     
+    // Normaliza para comparação consistente
+    const relativeNorm = normalize(relativePath);
     // Busca o componente original pelo caminho relativo
-    const component = this.scannedComponents().find(c => c.filePath === relativePath);
+    const component = this.scannedComponents().find(c => normalize(c.filePath) === relativeNorm);
     
     if (!component) {
       
