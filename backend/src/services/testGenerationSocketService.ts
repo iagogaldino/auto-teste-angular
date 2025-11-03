@@ -76,8 +76,31 @@ export class TestGenerationSocketService {
       });
 
       // Gerar testes para arquivos selecionados
-      socket.on('generate-tests', async (data: { files: string[]; options?: any }) => {
+      socket.on('generate-tests', async (data: { files: string[]; options?: any; cancelRunning?: boolean }) => {
+        // Se cancelRunning for true, cancela todos os testes em execução antes de iniciar novos
+        const shouldCancel = data.options?.cancelRunning === true || data.cancelRunning === true;
+        if (shouldCancel) {
+          const cancelledCount = this.jestExecutionService.getActiveTests().length;
+          this.jestExecutionService.cancelAllTests();
+          logger.info('auto_flow_tests_cancelled', { 
+            reason: 'new_tests_starting',
+            cancelledCount 
+          });
+          // Notifica o cliente sobre o cancelamento
+          socket.emit('tests-cancelled', { 
+            message: cancelledCount > 0 
+              ? `${cancelledCount} teste(s) em execução foram cancelados`
+              : 'Nenhum teste estava em execução'
+          });
+        }
         await this.handleGenerateTests(socket, data);
+      });
+
+      // Cancelar todas as execuções de testes
+      socket.on('cancel-all-tests', async () => {
+        this.jestExecutionService.cancelAllTests();
+        socket.emit('tests-cancelled', { message: 'Todos os testes em execução foram cancelados' });
+        logger.info('all_tests_cancelled');
       });
 
       // Criar arquivo de teste

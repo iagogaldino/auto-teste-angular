@@ -3,6 +3,10 @@
   <div class="modal-content" (click)="$event.stopPropagation()">
 		<div class="modal-header">
 			<h3>Fluxo Gerar com IA</h3>
+			<button mat-raised-button color="primary" (click)="startNewTests.emit()" [disabled]="!canStartNewTests" [title]="canStartNewTests ? 'Iniciar novos testes com os arquivos selecionados' : 'Selecione arquivos para iniciar novos testes'">
+				<mat-icon>play_circle</mat-icon>
+				<span>Iniciar Novos Testes</span>
+			</button>
 			<button mat-icon-button (click)="togglePause.emit()" [title]="paused ? 'Retomar' : 'Pausar'">
 				<mat-icon>{{ paused ? 'play_arrow' : 'pause' }}</mat-icon>
 			</button>
@@ -12,7 +16,7 @@
 		</div>
 		<div class="modal-body">
 			<div class="all-tests-execution">
-				<div class="execution-output running">
+				<div class="execution-output running" #autoFlowOutputContainer (scroll)="onScroll()">
 					<div class="output-content" [innerHTML]="logHtml"></div>
 				</div>
       </div>

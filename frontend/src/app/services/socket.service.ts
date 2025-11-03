@@ -50,6 +50,18 @@ export class SocketService {
     this.socket.emit('generate-tests', { files, options });
   }
 
+  // Cancelar todos os testes em execução
+  cancelAllTests(): void {
+    this.socket.emit('cancel-all-tests');
+  }
+
+  // Observable para quando testes forem cancelados
+  onTestsCancelled(): Observable<{ message: string }> {
+    return new Observable(observer => {
+      this.socket.on('tests-cancelled', (data: { message: string }) => observer.next(data));
+    });
+  }
+
   // Criar arquivo de teste
   createTestFile(filePath: string, content: string): void {
     this.socket.emit('create-test-file', { filePath, content });

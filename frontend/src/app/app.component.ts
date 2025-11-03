@@ -246,7 +246,6 @@ export class AppComponent implements OnInit, OnDestroy {
   // Stepper reference
   @ViewChild(MatStepper) stepper?: MatStepper;
   @ViewChild('allTestsOutputContainer') allTestsOutputContainer?: ElementRef<HTMLDivElement>;
-  @ViewChild('autoFlowOutputContainer') autoFlowOutputContainer?: ElementRef<HTMLDivElement>;
 
   showAllTestsModal = signal<boolean>(false);
 
@@ -267,15 +266,28 @@ export class AppComponent implements OnInit, OnDestroy {
     const mm = String(now.getMinutes()).padStart(2, '0');
     const ss = String(now.getSeconds()).padStart(2, '0');
     const prefix = `[${hh}:${mm}:${ss}] `;
-    this.autoFlowLog.update(l => (l ? l + '\n' : '') + prefix + message);
+    this.autoFlowLog.update(l => {
+      const current = l || '';
+      // Garante que há uma quebra de linha antes se necessário
+      const separator = current && !current.endsWith('\n') ? '\n' : '';
+      return current + separator + prefix + message + '\n';
+    });
     setTimeout(() => this.scrollAutoFlowToBottom(), 0);
     try { this.socketService.logAutoFlow(prefix + message); } catch {}
   }
 
   private appendAutoFlowRaw(chunk: string): void {
-    this.autoFlowLog.update(l => (l ? l : '') + chunk);
+    if (!chunk) return;
+    this.autoFlowLog.update(l => {
+      const current = l || '';
+      // Garante que há uma quebra de linha antes se o conteúdo anterior não terminou com \n
+      const separator = current && !current.endsWith('\n') ? '\n' : '';
+      // Se o chunk não termina com \n, adiciona uma quebra após blocos grandes
+      const chunkWithNewline = chunk.endsWith('\n') ? chunk : chunk + '\n';
+      return current + separator + chunkWithNewline;
+    });
     setTimeout(() => this.scrollAutoFlowToBottom(), 0);
-    // Envia apenas novas linhas “inteiras” para o backend (split por \n)
+    // Envia apenas novas linhas "inteiras" para o backend (split por \n)
     try {
       const lines = (chunk || '').split(/\r?\n/).filter(Boolean);
       for (const line of lines) {
@@ -616,6 +628,8 @@ export class AppComponent implements OnInit, OnDestroy {
         const isTarget = this.autoFlowTargets().some(t => normalize(t) === normalize(data.originalFilePath));
         if (isTarget) {
           this.appendAutoFlowLog(`Execução iniciada: ${this.getFileName(data.originalFilePath)}`);
+          // Adiciona uma linha em branco antes da saída do teste para melhor legibilidade
+          this.appendAutoFlowRaw('\n');
         }
       }
     });
@@ -944,6 +958,12 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
 
+    // Listener para quando testes forem cancelados
+    this.socketService.onTestsCancelled().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
+      if (this.autoFlowRunning()) {
+        this.appendAutoFlowLog(data.message || 'Testes em execução foram cancelados');
+      }
+    });
     
   }
 
@@ -1718,8 +1738,19 @@ export class AppComponent implements OnInit, OnDestroy {
     this.runAiAutoFlow();
   }
 
+  startNewTestsFromModal(): void {
+    // Permite iniciar novos testes mesmo se já houver um fluxo rodando
+    // Se houver um fluxo rodando, cancela os testes em execução antes de iniciar novos
+    if (this.autoFlowRunning()) {
+      this.appendAutoFlowLog('--- Cancelando testes em execução e iniciando novo fluxo ---');
+      this.socketService.cancelAllTests();
+    }
+    this.runAiAutoFlow();
+  }
+
   runAiAutoFlow(): void {
-    if (this.autoFlowRunning()) return;
+    // Permite reiniciar mesmo se já estiver rodando (para permitir novos testes)
+    // if (this.autoFlowRunning()) return;
     if (!this.directoryPath().trim()) {
       this.errorMessage.set('Selecione/abra um projeto antes de gerar testes');
       return;
@@ -1730,18 +1761,29 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     const fullPaths = this.selectedFiles().map(file => `${this.directoryPath()}/${file}`);
-    this.autoFlowTargets.set(fullPaths);
-    this.autoFlowPendingExecutions.set(fullPaths.length);
-    this.autoFlowRunning.set(true);
-    this.statusMessage.set(`Fluxo automático iniciado para ${fullPaths.length} arquivo(s)`);
-    this.errorMessage.set('');
-    this.showAutoFlowModal.set(true);
-    this.autoFlowLog.set('');
-    this.appendAutoFlowLog('Iniciando fluxo: Gerar → Executar → Corrigir com IA');
+    
+    // Se já estiver rodando, reinicia o fluxo completamente (já cancelamos os testes)
+    if (this.autoFlowRunning()) {
+      // Reseta o estado do fluxo para iniciar novo
+      this.autoFlowTargets.set(fullPaths);
+      this.autoFlowPendingExecutions.set(fullPaths.length);
+      this.appendAutoFlowLog(`Iniciando novo fluxo para ${fullPaths.length} arquivo(s)`);
+    } else {
+      // Novo fluxo
+      this.autoFlowTargets.set(fullPaths);
+      this.autoFlowPendingExecutions.set(fullPaths.length);
+      this.autoFlowRunning.set(true);
+      this.statusMessage.set(`Fluxo automático iniciado para ${fullPaths.length} arquivo(s)`);
+      this.errorMessage.set('');
+      this.showAutoFlowModal.set(true);
+      this.autoFlowLog.set('');
+      this.appendAutoFlowLog('Iniciando fluxo: Gerar → Executar → Corrigir com IA');
+    }
+    
     setTimeout(() => this.scrollAutoFlowToBottom(), 0);
 
-    // Dispara a geração de testes; execuções ocorrerão quando cada teste for gerado
-    this.socketService.generateTests(fullPaths);
+    // Dispara a geração de testes com flag para cancelar testes em execução
+    this.socketService.generateTests(fullPaths, { cancelRunning: true });
   }
 
   
@@ -1783,12 +1825,9 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private scrollAutoFlowToBottom(): void {
-    const container = this.autoFlowOutputContainer?.nativeElement;
-    if (!container) return;
-    requestAnimationFrame(() => {
-      container.scrollTop = container.scrollHeight;
-      setTimeout(() => { container.scrollTop = container.scrollHeight; }, 30);
-    });
+    // Scroll agora é gerenciado pelo componente do modal (AutoFlowModalComponent)
+    // Este método pode ser mantido para compatibilidade, mas não faz nada
+    // O scroll automático é feito via AfterViewChecked no componente filho
   }
 
   // ===== Pretty formatting for Auto Flow log =====
@@ -1798,21 +1837,79 @@ export class AppComponent implements OnInit, OnDestroy {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
-    const lines = text.split(/\r?\n/);
-    const formatted = lines.map(line => {
+    const allLines = text.split(/\r?\n/);
+    
+    let formatted = '';
+    let previousType: 'message' | 'output' | 'empty' = 'empty';
+    let inJestBlock = false;
+    
+    for (let i = 0; i < allLines.length; i++) {
+      const line = allLines[i];
+      const trimmed = line.trim();
+      
+      // Linha vazia
+      if (!trimmed) {
+        // Só adiciona espaçamento se não estivermos já em um bloco vazio
+        if (previousType !== 'empty') {
+          formatted += '<div class="log-line log-spacer"></div>';
+          previousType = 'empty';
+        }
+        continue;
+      }
+      
       const raw = escapeHtml(line);
+      const hasTimestamp = /^\[[0-9]{2}:[0-9]{2}:[0-9]{2}\]/.test(trimmed);
+      
+      // Detecta início/fim de blocos Jest
+      const isJestHeader = /^(PASS|FAIL|Executando:|ts-jest|Test Suites:)/i.test(trimmed);
+      const isJestFooter = /^(Tests:|Time:|Ran all|Snapshots:)/i.test(trimmed);
+      const isJestStack = /^\s*(at |●|TypeError|Error:)/.test(line);
+      
+      if (isJestHeader || isJestStack) {
+        inJestBlock = true;
+      }
+      const wasInJestBlock = inJestBlock;
+      if (isJestFooter && inJestBlock) {
+        // Fim de bloco Jest - adiciona espaçamento após
+        inJestBlock = false;
+      }
+      
+      // Determina tipo de linha
+      const currentType = hasTimestamp ? 'message' : 'output';
+      
+      // Adiciona espaçamento entre mensagens e saída, ou após blocos Jest
+      const needsSpacerBefore = (previousType !== 'empty' && previousType !== currentType) ||
+                                 (previousType === 'output' && currentType === 'message') ||
+                                 (isJestFooter && wasInJestBlock);
+      
+      if (needsSpacerBefore && previousType !== 'empty') {
+        formatted += '<div class="log-line log-spacer"></div>';
+      }
+      
       // realce timestamp [HH:MM:SS]
       const withTime = raw.replace(/^(\[[0-9]{2}:[0-9]{2}:[0-9]{2}\])/, '<span class="log-time">$1</span>');
       const lower = raw.toLowerCase();
       let cls = 'log-info';
-      if (/erro|falhou|fail\b/.test(lower)) cls = 'log-error';
-      else if (/sucesso|passou|corrigido|conclu[ií]do/.test(lower)) cls = 'log-success';
-      else if (/warn|aviso/.test(lower)) cls = 'log-warn';
+      if (/erro|falhou|fail\b|error/i.test(lower)) cls = 'log-error';
+      else if (/sucesso|passou|corrigido|conclu[ií]do|pass/i.test(lower)) cls = 'log-success';
+      else if (/warn|aviso/i.test(lower)) cls = 'log-warn';
+      
       // marca linhas de jest (FAIL/PASS)
       let content = withTime.replace(/\bFAIL\b/g, '<span class="log-error-kw">FAIL</span>')
-                            .replace(/\bPASS\b/g, '<span class="log-success-kw">PASS</span>');
-      return `<div class="log-line ${cls}">${content}</div>`;
-    }).join('');
+                            .replace(/\bPASS\b/g, '<span class="log-success-kw">PASS</span>')
+                            .replace(/\bTest Suites:\b/g, '<strong class="log-info">Test Suites:</strong>')
+                            .replace(/\bTests:\b/g, '<strong class="log-info">Tests:</strong>')
+                            .replace(/\bTime:\b/g, '<strong class="log-info">Time:</strong>');
+      
+      // Adiciona indentação para stack traces e detalhes de erro
+      if (!hasTimestamp && (isJestStack || /^\s+(at |\^)/.test(line))) {
+        content = '<span class="log-output-indent">' + content + '</span>';
+      }
+      
+      formatted += `<div class="log-line ${cls}">${content}</div>`;
+      previousType = currentType;
+    }
+    
     return formatted;
   }
 

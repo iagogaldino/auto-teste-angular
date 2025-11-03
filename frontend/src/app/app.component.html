@@ -300,7 +300,9 @@
     [opened]="showAutoFlowModal()"
     [paused]="autoFlowPaused()"
     [logHtml]="formatAutoFlowLog(autoFlowLog())"
+    [canStartNewTests]="hasSelectedFiles()"
     (togglePause)="toggleAutoFlowPause()"
+    (startNewTests)="startNewTestsFromModal()"
     (close)="showAutoFlowModal.set(false)"
   ></app-auto-flow-modal>
 </div>
